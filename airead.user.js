@@ -12,7 +12,7 @@
 // ==/UserScript==
 
 const AIREAD_CSS = `
-.airead-button-group {
+.airead-tool-button-group {
     display: block;
     position: absolute;
     background-color: rgba(255, 255, 255, 0.5);
@@ -27,7 +27,7 @@ const AIREAD_CSS = `
     margin: 0px 0px 4px 0px;
     z-index: 1000;
 }
-.airead-container:hover {
+.airead-element-hover {
     box-shadow: 0px 0px 4px gray !important;
     background-color: azure !important;
 }
@@ -42,6 +42,39 @@ html {
     scroll-behavior: smooth;
 }
 `;
+
+function apply_css() {
+    let style_element = document.createElement("style");
+    style_element.textContent = AIREAD_CSS;
+    document.head.appendChild(style_element);
+}
+
+function get_offset_top(element) {
+    let offset_top = 0;
+    while (element) {
+        offset_top += element.offsetTop;
+        element = element.offsetParent;
+    }
+    return offset_top;
+}
+
+window.hovering_element = null;
+function add_container_to_element(element, tool_button_group) {
+    let container = document.createElement("div");
+    element.parentNode.replaceChild(container, element);
+    container.appendChild(element);
+    container.addEventListener("mouseenter", (event) => {
+        if (window.hovering_element !== element) {
+            window.hovering_element?.classList.remove("airead-element-hover");
+            window.hovering_element = element;
+            element.classList.add("airead-element-hover");
+            tool_button_group.attach_to_element(element);
+            console.log("Enter element:", element);
+        }
+    });
+    container.addEventListener("mouseleave", (event) => {});
+    return container;
+}
 
 class NoteElement {
     constructor() {}
@@ -58,150 +91,80 @@ class NoteElement {
     }
 }
 
-class PureElementsEquipper {
-    constructor() {}
-    apply_css() {
-        let style_element = document.createElement("style");
-        style_element.textContent = AIREAD_CSS;
-        document.head.appendChild(style_element);
+class ToolButtonGroup {
+    constructor() {
+        this.create_button_group();
     }
-    stylize_button_group(button_group, element) {
-        button_group.classList.add("airead-button-group");
-        button_group.style.maxHeight = `${element.offsetHeight}px`;
-        // get max width of children buttons in button_group
+    create_button(button_text, on_click_func) {
+        let button = document.createElement("button");
+        button.innerHTML = button_text;
+        button.classList.add("airead-button");
+        this.button_group.appendChild(button);
+        this.button_group.appendChild(document.createElement("br"));
+        button.addEventListener("click", on_click_func);
+        return button;
+    }
+    create_button_group() {
+        this.button_group = document.createElement("div");
+        this.button_group.id = "airead-tool-button-group";
+        this.button_group.classList.add("airead-tool-button-group");
+        this.copy_button = this.create_button("Copy", () => {});
+        this.translate_button = this.create_button("Translate", () => {});
+        this.parent_button = this.create_button("Parent", () => {});
+
+        document.body.prepend(this.button_group);
+
         let max_width = 0;
-        for (let i = 0; i < button_group.children.length; i++) {
-            let button = button_group.children[i];
+        for (let i = 0; i < this.button_group.children.length; i++) {
+            let button = this.button_group.children[i];
             if (button.offsetWidth > max_width) {
                 max_width = button.offsetWidth;
             }
         }
+        this.button_group.style.width = `${max_width}px`;
+    }
+    stylize_button_group(element) {
+        // extract from body if button_group is child of body, then append to element.parentNode
+        if (this.button_group.parentNode !== element.parentNode) {
+            this.button_group.parentNode.removeChild(this.button_group);
+            element.parentNode.appendChild(this.button_group);
+        }
         const update_button_group_position = () => {
-            let button_group_left = element.offsetLeft - max_width - 4;
+            let button_group_left =
+                element.offsetLeft - this.button_group.offsetWidth - 4;
             let button_group_top = element.offsetTop;
-            button_group.style.left = `${button_group_left}px`;
-            button_group.style.top = `${button_group_top}px`;
-            button_group.style.height = `${element.offsetHeight}px`;
+            this.button_group.style.left = `${button_group_left}px`;
+            this.button_group.style.top = `${button_group_top}px`;
         };
         update_button_group_position();
         window.addEventListener("resize", update_button_group_position);
-        button_group.style.opacity = 0;
     }
-    add_buttons(element) {
-        let container = document.createElement("div");
-        element.parentNode.replaceChild(container, element);
-        container.appendChild(element);
-        container.classList.add("airead-container");
-        let button_group = document.createElement("div");
-        button_group.classList.add("airead-button-group");
-        container.appendChild(button_group);
-        this.add_button(button_group, "Copy", () => {
+    bind_buttons_func_to_element(element) {
+        this.copy_button.onclick = () => {
             console.log("Copy:", element.textContent);
-        });
-        this.add_button(button_group, "Translate", () => {
+        };
+        this.translate_button.onclick = () => {
             console.log("Translate:", element.textContent);
-        });
-        this.add_button(button_group, "Parent", () => {
-            console.log(
-                "Goto parent:",
-                element.parentNode.scrollIntoView({
-                    block: "center",
-                })
-            );
-        });
-
-        function get_offset_top(element) {
-            let offset_top = 0;
-            while (element) {
-                offset_top += element.offsetTop;
-                element = element.offsetParent;
-            }
-            return offset_top;
-        }
-        function calc_cursor_vertical_distance_with_button_group(
-            button_group,
-            event
-        ) {
-            if (!button_group) {
-                return 1000;
-            }
-            let cursor_y = window.scrollY + event.clientY;
-            // get first button in button_group
-            let top_button = button_group.children[0];
-            // get last button in button_group
-            let bottom_button =
-                button_group.children[button_group.children.length - 2];
-            let button_group_top = get_offset_top(top_button);
-            let button_group_bottom =
-                get_offset_top(bottom_button) + bottom_button.offsetHeight;
-            console.log(
-                "cursor_y:",
-                cursor_y,
-                "button_group_top:",
-                button_group_top,
-                "button_group_bottom:",
-                button_group_bottom,
-                "button_group:",
-                button_group
-            );
-
-            if (cursor_y > button_group_top && cursor_y < button_group_bottom) {
-                return 0;
-            }
-            let cursor_and_button_group_top_distance = Math.abs(
-                cursor_y - button_group_top
-            );
-            let cursor_and_button_group_bottom_distance = Math.abs(
-                cursor_y - button_group_bottom
-            );
-            let cursor_and_button_group_y_distance = Math.min(
-                cursor_and_button_group_top_distance,
-                cursor_and_button_group_bottom_distance
-            );
-            return cursor_and_button_group_y_distance;
-        }
-        container.addEventListener("mouseenter", (event) => {
-            let cursor_and_button_group_y_distance =
-                calc_cursor_vertical_distance_with_button_group(
-                    window.hovering_button_group,
-                    event
-                );
-            if (
-                cursor_and_button_group_y_distance > 0 ||
-                window.hovering_button_group === button_group
-            ) {
-                button_group.style.opacity = 1;
-                console.log(
-                    "hovering_button_group:",
-                    window.hovering_button_group
-                );
-            }
-        });
-        container.addEventListener("mouseleave", (event) => {
-            let cursor_and_button_group_y_distance =
-                calc_cursor_vertical_distance_with_button_group(
-                    window.hovering_button_group,
-                    event
-                );
-            if (cursor_and_button_group_y_distance > 0) {
-                button_group.style.opacity = 0;
-                window.hovering_button_group = button_group;
-                console.log(
-                    "hovering_button_group:",
-                    window.hovering_button_group
-                );
-            }
-        });
-        this.stylize_button_group(button_group, element);
-        window.hovering_button_group = null;
+        };
+        this.parent_button.onclick = () => {
+            element.parentNode.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+            });
+            console.log("Parent of:", element.textContent);
+        };
     }
-    add_button(button_group, button_text, on_click_func) {
-        let button = document.createElement("button");
-        button.innerHTML = button_text;
-        button.classList.add("airead-button");
-        button_group.appendChild(button);
-        button_group.appendChild(document.createElement("br"));
-        button.addEventListener("click", on_click_func);
+    attach_to_element(element = null) {
+        if (element) {
+            console.log(
+                "Attach tool_button_group",
+                this.button_group,
+                "to element",
+                element
+            );
+            this.stylize_button_group(element);
+            this.bind_buttons_func_to_element(element);
+        }
     }
 }
 
@@ -211,9 +174,9 @@ class PureElementsEquipper {
     let selector = new PureElementsSelector();
     let pure_elements = selector.select();
     selector.stylize();
-    let equipper = new PureElementsEquipper();
-    equipper.apply_css();
-    pure_elements.forEach((element) => {
-        equipper.add_buttons(element);
-    });
+    apply_css();
+    let tool_button_group = new ToolButtonGroup();
+    for (let element of pure_elements) {
+        add_container_to_element(element, tool_button_group);
+    }
 })();
