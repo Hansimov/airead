@@ -6,12 +6,12 @@
 // @author       Hansimov
 // @match        https://*.wikipedia.org/wiki/*
 // @match        https://ar5iv.labs.arxiv.org/html/*
-// @match        http://http://127.0.0.1:17777/*.html
-// @icon         https://raw.githubusercontent.com/Hansimov/openai-js/master/penrose.png
-// @grant        none
+// @match        http://127.0.0.1:17777/*.html
+// @icon         https://raw.githubusercontent.com/Hansimov/openai-js/main/penrose.png
 // @require      http://127.0.0.1:17777/purepage/purepage.user.js
-// @require      http://127.0.0.1:17777/airead/purepage.user.js
+// @require      http://127.0.0.1:17777/airead/airead.user.js
 // @require      http://127.0.0.1:17777/openai-js/openai.user.js
+// @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
 (function () {
