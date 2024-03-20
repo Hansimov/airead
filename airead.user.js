@@ -31,15 +31,21 @@ const AIREAD_CSS = `
     box-shadow: 0px 0px 4px gray !important;
     background-color: azure !important;
 }
+
+@keyframes airead-element-focus {
+    0% { background-color: initial; }
+    50% { background-color: lightcoral; }
+    100% { background-color: initial; }
+}
+.airead-element-focus {
+    animation: airead-element-focus 1s ease-in-out 1;
+}
 .airead-note {
     background-color: rgba(255, 255, 255, 0.5);
     border: 1px solid rgba(0, 0, 0, 0.5);
     box-shadow: 0px 0px 4px gray;
     position: absolute;
     z-index: 1000;
-}
-html {
-    scroll-behavior: smooth;
 }
 `;
 
@@ -49,13 +55,30 @@ function apply_css() {
     document.head.appendChild(style_element);
 }
 
-function get_offset_top(element) {
-    let offset_top = 0;
-    while (element) {
-        offset_top += element.offsetTop;
-        element = element.offsetParent;
+function get_pure_parent(element) {
+    let parent = element;
+    // get index of element in window.pure_elements
+    let element_index = window.pure_elements.indexOf(element);
+    // loop the window.pure_elements back from element,
+    // until find tag h1~h6(use regex to match), and the tag number should be smaller than element's tag number
+    let element_tag = element.tagName;
+    for (let i = element_index - 1; i >= 0; i--) {
+        let element_i = window.pure_elements[i];
+        let element_i_tag = element_i.tagName;
+        if (!element_i_tag.match(/H[1-6]/)) continue;
+        if (!element_tag.match(/H[1-6]/)) {
+            parent = element_i;
+            break;
+        } else {
+            let element_i_tag_number = parseInt(element_i_tag.slice(1));
+            let element_tag_number = parseInt(element_tag.slice(1));
+            if (element_i_tag_number < element_tag_number) {
+                parent = element_i;
+                break;
+            }
+        }
     }
-    return offset_top;
+    return parent;
 }
 
 window.hovering_element = null;
@@ -69,7 +92,6 @@ function add_container_to_element(element, tool_button_group) {
             window.hovering_element = element;
             element.classList.add("airead-element-hover");
             tool_button_group.attach_to_element(element);
-            console.log("Enter element:", element);
         }
     });
     container.addEventListener("mouseleave", (event) => {});
@@ -147,21 +169,19 @@ class ToolButtonGroup {
             console.log("Translate:", element.textContent);
         };
         this.parent_button.onclick = () => {
-            element.parentNode.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-            });
-            console.log("Parent of:", element.textContent);
+            let pure_parent = get_pure_parent(element);
+            // focus on the parent
+            pure_parent.focus();
+            pure_parent.scrollIntoView({ behavior: "smooth", block: "start" });
+            pure_parent.classList.add("airead-element-focus");
+            setTimeout(() => {
+                pure_parent.classList.remove("airead-element-focus");
+            }, 1500);
+            console.log("Goto Parent:", pure_parent, "of:", element);
         };
     }
     attach_to_element(element = null) {
         if (element) {
-            console.log(
-                "Attach tool_button_group",
-                this.button_group,
-                "to element",
-                element
-            );
             this.stylize_button_group(element);
             this.bind_buttons_func_to_element(element);
         }
@@ -172,11 +192,11 @@ class ToolButtonGroup {
     "use strict";
     console.log("+ Plugin loaded: AIRead");
     let selector = new PureElementsSelector();
-    let pure_elements = selector.select();
+    window.pure_elements = selector.select();
     selector.stylize();
     apply_css();
     let tool_button_group = new ToolButtonGroup();
-    for (let element of pure_elements) {
+    for (let element of window.pure_elements) {
         add_container_to_element(element, tool_button_group);
     }
 })();
