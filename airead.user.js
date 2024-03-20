@@ -16,9 +16,14 @@ const AIREAD_CSS = `
     display: block;
     position: absolute;
     background-color: rgba(255, 255, 255, 0.5);
-    border: 1px solid #000;
+    border: 1px solid rgba(0, 0, 0, 0.5);
     box-shadow: 0px 0px 4px gray;
-    opacity: 0.1;
+    opacity: 0;
+    z-index: 1000;
+}
+.airead-container:hover {
+    box-shadow: 0px 0px 4px gray !important;
+    background-color: azure !important;
 }
 `;
 
@@ -33,7 +38,7 @@ class PureElementsEquipper {
         button.classList.add("airead-button");
         const update_button_position = () => {
             let button_left = Math.max(
-                element.offsetLeft - button.offsetWidth - 2,
+                element.offsetLeft - button.offsetWidth - 4,
                 5
             );
             let button_top = element.offsetTop;
@@ -49,6 +54,7 @@ class PureElementsEquipper {
         container.appendChild(element);
         let button = document.createElement("button");
         container.appendChild(button);
+        container.classList.add("airead-container");
 
         button.innerHTML = "Print";
         button.addEventListener("click", () => {
@@ -58,7 +64,7 @@ class PureElementsEquipper {
             button.style.opacity = 1;
         });
         container.addEventListener("mouseout", () => {
-            button.style.opacity = 0.1;
+            button.style.opacity = 0;
         });
         this.stylize_button(button, element);
     }
