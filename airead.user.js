@@ -37,10 +37,7 @@ class PureElementsEquipper {
     stylize_button(button, element) {
         button.classList.add("airead-button");
         const update_button_position = () => {
-            let button_left = Math.max(
-                element.offsetLeft - button.offsetWidth - 4,
-                5
-            );
+            let button_left = element.offsetLeft - button.offsetWidth - 4;
             let button_top = element.offsetTop;
             button.style.left = `${button_left}px`;
             button.style.top = `${button_top}px`;
