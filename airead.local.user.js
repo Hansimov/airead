@@ -8,12 +8,32 @@
 // @match        https://ar5iv.labs.arxiv.org/html/*
 // @match        http://127.0.0.1:17777/*.html
 // @icon         https://raw.githubusercontent.com/Hansimov/openai-js/main/penrose.png
-// @require      http://127.0.0.1:17777/purepage/purepage.user.js
-// @require      http://127.0.0.1:17777/airead/airead.user.js
-// @require      http://127.0.0.1:17777/openai-js/openai.user.js
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
+function require_modules({ host = "127.0.0.1", port = 17777 } = {}) {
+    let server = `http://${host}:${port}`;
+    let module_urls = [
+        `${server}/purepage/purepage.user.js`,
+        `${server}/openai-js/openai.user.js`,
+        `${server}/airead/airead.user.js`,
+    ];
+    for (let i = 0; i < module_urls.length; i++) {
+        let url = module_urls[i];
+        GM.xmlHttpRequest({
+            method: "GET",
+            url: url + `?ts=${new Date().getTime()}`,
+            onload: function (response) {
+                let remoteScript = document.createElement("script");
+                remoteScript.innerHTML = response.responseText;
+                document.body.appendChild(remoteScript);
+            },
+        });
+    }
+}
+
 (function () {
     "use strict";
+    console.log("+ App loaded: AIRead (Local)");
+    require_modules();
 })();
