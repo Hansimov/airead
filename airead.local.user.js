@@ -11,25 +11,25 @@
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
+function require_module(url, callback = null) {
+    GM.xmlHttpRequest({
+        method: "GET",
+        url: url + `?ts=${new Date().getTime()}`,
+        onload: function (response) {
+            let script_element = document.createElement("script");
+            script_element.innerHTML = response.responseText;
+            document.body.appendChild(script_element);
+            if (callback) callback();
+        },
+    });
+}
+
 function require_modules({ host = "127.0.0.1", port = 17777 } = {}) {
     let server = `http://${host}:${port}`;
-    let module_urls = [
-        `${server}/purepage/purepage.user.js`,
-        `${server}/openai-js/openai.user.js`,
-        `${server}/airead/airead.user.js`,
-    ];
-    for (let i = 0; i < module_urls.length; i++) {
-        let url = module_urls[i];
-        GM.xmlHttpRequest({
-            method: "GET",
-            url: url + `?ts=${new Date().getTime()}`,
-            onload: function (response) {
-                let remoteScript = document.createElement("script");
-                remoteScript.innerHTML = response.responseText;
-                document.body.appendChild(remoteScript);
-            },
-        });
-    }
+    require_module(`${server}/openai-js/openai.user.js`);
+    require_module(`${server}/purepage/purepage.user.js`, function () {
+        require_module(`${server}/airead/airead.user.js`);
+    });
 }
 
 (function () {
