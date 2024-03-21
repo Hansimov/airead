@@ -8,10 +8,12 @@
 // @match        https://ar5iv.labs.arxiv.org/html/*
 // @icon         https://raw.githubusercontent.com/Hansimov/openai-js/main/penrose.png
 // @grant        GM_xmlhttpRequest
-// @require      https://code.jquery.com/jquery-3.7.1.min.js
 // ==/UserScript==
 
 const AIREAD_CSS = `
+.pure-element {
+}
+
 .airead-tool-button-group {
     display: block;
     position: absolute;
@@ -27,11 +29,11 @@ const AIREAD_CSS = `
     margin: 0px 0px 4px 0px;
     z-index: 1000;
 }
+
 .airead-element-hover {
     box-shadow: 0px 0px 4px gray !important;
     background-color: azure !important;
 }
-
 @keyframes airead-element-focus {
     0% { background-color: initial; }
     50% { background-color: lightcoral; }
@@ -40,6 +42,8 @@ const AIREAD_CSS = `
 .airead-element-focus {
     animation: airead-element-focus 1s ease-in-out 1;
 }
+
+.airead-chat-user-input {}
 .airead-note {
     background-color: rgba(255, 255, 255, 0.5);
     border: 1px solid rgba(0, 0, 0, 0.5);
@@ -81,7 +85,65 @@ function get_pure_parent(element) {
     return parent;
 }
 
+class ChatUserInput {
+    constructor() {}
+    construct_html() {
+        let html = `
+            <div class="col px-0">
+                <textarea class="form-control" rows="1"
+                    placeholder="Ask me anything ..."></textarea>
+            </div>
+            <div class="col-auto pr-3 pl-0">
+                <button class="btn px-0">
+                    <i class="fa fa-paper-plane"></i>
+                </button>
+            </div>
+        `;
+        return html;
+    }
+    spawn(parent_element) {
+        this.user_input_group = document.createElement("div");
+        this.user_input_group.innerHTML = this.construct_html();
+        parent_element.parentNode.appendChild(this.user_input_group);
+        this.user_input_group.classList.add(
+            "my-2",
+            "row",
+            "no-gutters",
+            "airead-chat-user-input"
+        );
+        let user_input = this.user_input_group.querySelector("textarea");
+        user_input.addEventListener(
+            "input",
+            function () {
+                this.style.height = 0;
+                this.style.height = this.scrollHeight + 3 + "px";
+            },
+            false
+        );
+        user_input.addEventListener("keypress", (event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                console.log(
+                    "Send:",
+                    user_input.value,
+                    "element:",
+                    parent_element
+                );
+                user_input.value = "";
+            }
+        });
+
+        let send_button =
+            this.user_input_group.querySelector("button:last-child");
+        send_button.addEventListener("click", () => {
+            console.log("Send:", user_input.value, "element:", parent_element);
+        });
+        return this.user_input_group;
+    }
+}
+
 window.hovering_element = null;
+window.hovering_chat_user_input_group = null;
 function add_container_to_element(element, tool_button_group) {
     let container = document.createElement("div");
     element.parentNode.replaceChild(container, element);
@@ -100,9 +162,9 @@ function add_container_to_element(element, tool_button_group) {
 
 class NoteElement {
     constructor() {}
-    spawn(container) {
-        this.element = document.createElement("div");
-        container.appendChild(this.element);
+    spawn(element) {
+        let note_element = document.createElement("div");
+        element.parentNode.appendChild(note_element);
         this.element.classList.add("airead-note");
     }
     stylize_note() {
@@ -131,7 +193,7 @@ class ToolButtonGroup {
         this.button_group.id = "airead-tool-button-group";
         this.button_group.classList.add("airead-tool-button-group");
         this.copy_button = this.create_button("Copy", () => {});
-        this.translate_button = this.create_button("Translate", () => {});
+        this.chat_button = this.create_button("Chat", () => {});
         this.parent_button = this.create_button("Parent", () => {});
 
         document.body.prepend(this.button_group);
@@ -149,7 +211,11 @@ class ToolButtonGroup {
         // extract from body if button_group is child of body, then append to element.parentNode
         if (this.button_group.parentNode !== element.parentNode) {
             this.button_group.parentNode.removeChild(this.button_group);
-            element.parentNode.appendChild(this.button_group);
+            // insert this.button_group just after element
+            element.parentNode.insertBefore(
+                this.button_group,
+                element.nextSibling
+            );
         }
         const update_button_group_position = () => {
             let button_group_left =
@@ -165,8 +231,27 @@ class ToolButtonGroup {
         this.copy_button.onclick = () => {
             console.log("Copy:", element.textContent);
         };
-        this.translate_button.onclick = () => {
-            console.log("Translate:", element.textContent);
+        this.chat_button.onclick = () => {
+            let chat_button_text = this.chat_button.innerHTML.toLowerCase();
+            if (chat_button_text === "chat") {
+                // create new ChatUserInput if last sibling of element is not user_input
+                let last_child = element.parentNode.lastChild;
+                if (!last_child.classList.contains("airead-chat-user-input")) {
+                    let chat_user_input_instance = new ChatUserInput();
+                    let chat_user_group =
+                        chat_user_input_instance.spawn(element);
+                }
+                element.parentNode.lastChild.style.display = "block";
+                this.chat_button.innerHTML = "Hide";
+            } else if (chat_button_text === "hide") {
+                // hide chat_user_input_group
+                let chat_user_input_group = element.parentNode.querySelector(
+                    ".airead-chat-user-input"
+                );
+                chat_user_input_group.style.display = "none";
+                this.chat_button.innerHTML = "Chat";
+            } else {
+            }
         };
         this.parent_button.onclick = () => {
             let pure_parent = get_pure_parent(element);
