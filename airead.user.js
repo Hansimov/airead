@@ -29,6 +29,9 @@ const AIREAD_CSS = `
     margin: 0px 0px 4px 0px;
     z-index: 1000;
 }
+.airead-button:hover {
+    background-color: rgba(128, 255, 128, 0.5);
+}
 
 .airead-element-hover {
     box-shadow: 0px 0px 4px gray !important;
@@ -36,7 +39,7 @@ const AIREAD_CSS = `
 }
 @keyframes airead-element-focus {
     0% { background-color: initial; }
-    50% { background-color: lightcoral; }
+    50% { background-color: rgba(128, 255, 128, 0.8); }
     100% { background-color: initial; }
 }
 .airead-element-focus {
@@ -52,6 +55,10 @@ const AIREAD_CSS = `
 .airead-chat-user-input {
     resize: none;
 }
+.airead-chat-message-user {
+    background-color: rgba(128, 255, 128, 0.1);
+}
+
 .airead-note {
     background-color: rgba(255, 255, 255, 0.5);
     border: 1px solid rgba(0, 0, 0, 0.5);
@@ -132,12 +139,41 @@ class ChatUserInput {
                     "element:",
                     parent_element
                 );
+                let chat_message = new ChatMessageElement({
+                    role: "user",
+                    content: user_input.value,
+                });
+                chat_message.spawn(parent_element);
                 user_input.value = "";
                 user_input.style.height = "auto";
             }
         });
 
         return this.user_input_group;
+    }
+}
+
+class ChatMessageElement {
+    constructor({ role = "user", content = "" } = {}) {
+        this.role = role;
+        this.content = content;
+    }
+    construct_html() {
+        let html = `<p></p>`;
+        return html;
+    }
+    spawn(parent_element) {
+        this.message_element = document.createElement("p");
+        let user_input_group = parent_element.parentNode.querySelector(
+            ".airead-chat-user-input-group"
+        );
+        parent_element.parentNode.insertBefore(
+            this.message_element,
+            user_input_group
+        );
+        this.message_element.classList.add(`airead-chat-message-${this.role}`);
+        this.message_element.textContent = this.content;
+        return this.message_element;
     }
 }
 
@@ -244,6 +280,12 @@ class ToolButtonGroup {
                         chat_user_input_instance.spawn(element);
                 }
                 element.parentNode.lastChild.style.display = "block";
+                let chat_messages = element.parentNode.querySelectorAll(
+                    "[class^='airead-chat-message']"
+                );
+                for (let chat_message of chat_messages) {
+                    chat_message.style.display = "block";
+                }
                 this.chat_button.innerHTML = "Hide";
             } else if (chat_button_text === "hide") {
                 // hide chat_user_input_group
@@ -251,6 +293,13 @@ class ToolButtonGroup {
                     ".airead-chat-user-input-group"
                 );
                 chat_user_input_group.style.display = "none";
+                // hide all elements with class starts with "airead-chat-message"
+                let chat_messages = element.parentNode.querySelectorAll(
+                    "[class^='airead-chat-message']"
+                );
+                for (let chat_message of chat_messages) {
+                    chat_message.style.display = "none";
+                }
                 this.chat_button.innerHTML = "Chat";
             } else {
             }
