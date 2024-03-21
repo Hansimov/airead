@@ -3,14 +3,16 @@ An AI-assisted reading script in browsers.
 
 ## Scripts
 
-There are three versions:
+Currently there are 4 files:
 
-- Stable: `airead.user.js`
-  - Use pinned versions of required module scripts
-  - Recommended for most users
-- Dev: `airead.dev.user.js`
-  - Use latest versions of required module scripts, with experimental features and fixes
-  - For active testers and brave users
-- Local: `airead.local.user.js`
+- airead.**stable**.user.js`
+  - Stable release with pinned versions
+  - Recommend for most users
+- airead.**latest**.user.js`
+  - Latest release with latest versions of modules
+  - Recommend for active testers and brave users
+- airead.**local**.user.js`
   - Quick develop and test in local environments
   - For developers
+- `airead.user.js`
+  - The module which is required by above scripts
