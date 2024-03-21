@@ -30,7 +30,6 @@ function require_module(url, cache = true) {
                 }
                 module_element.innerHTML = response.responseText;
                 document.head.appendChild(module_element);
-                console.log("Loading script:", url);
                 resolve();
             },
             onerror: function (error) {
@@ -46,6 +45,10 @@ function require_modules({ host = "127.0.0.1", port = 17777 } = {}) {
         "https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js";
     let bootstrap_css =
         "https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css";
+    let font_awesome_css =
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css";
+    let font_awesome_v4_css =
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/v4-shims.min.css";
     let server = `http://${host}:${port}`;
     let openai_user_js = `${server}/openai-js/openai.user.js`;
     let pure_page_user_js = `${server}/purepage/purepage.user.js`;
@@ -54,6 +57,8 @@ function require_modules({ host = "127.0.0.1", port = 17777 } = {}) {
         require_module(jquery_js),
         require_module(bootstrap_js),
         require_module(bootstrap_css),
+        require_module(font_awesome_css),
+        require_module(font_awesome_v4_css),
         require_module(openai_user_js, false),
         require_module(pure_page_user_js, false),
     ])
