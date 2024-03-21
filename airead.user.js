@@ -43,7 +43,15 @@ const AIREAD_CSS = `
     animation: airead-element-focus 1s ease-in-out 1;
 }
 
-.airead-chat-user-input {}
+.airead-chat-user-input-group {
+    box-shadow: 0px 0px 4px gray;
+    border-radius: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+.airead-chat-user-input {
+    resize: none;
+}
 .airead-note {
     background-color: rgba(255, 255, 255, 0.5);
     border: 1px solid rgba(0, 0, 0, 0.5);
@@ -89,14 +97,9 @@ class ChatUserInput {
     constructor() {}
     construct_html() {
         let html = `
-            <div class="col px-0">
-                <textarea class="form-control" rows="1"
-                    placeholder="Ask me anything ..."></textarea>
-            </div>
-            <div class="col-auto pr-3 pl-0">
-                <button class="btn px-0">
-                    <i class="fa fa-paper-plane"></i>
-                </button>
+            <div class="col-auto px-0">
+                <textarea class="form-control airead-chat-user-input" rows="1"
+                    placeholder="Ask about this paragraph ..."></textarea>
             </div>
         `;
         return html;
@@ -109,7 +112,7 @@ class ChatUserInput {
             "my-2",
             "row",
             "no-gutters",
-            "airead-chat-user-input"
+            "airead-chat-user-input-group"
         );
         let user_input = this.user_input_group.querySelector("textarea");
         user_input.addEventListener(
@@ -130,14 +133,10 @@ class ChatUserInput {
                     parent_element
                 );
                 user_input.value = "";
+                user_input.style.height = "auto";
             }
         });
 
-        let send_button =
-            this.user_input_group.querySelector("button:last-child");
-        send_button.addEventListener("click", () => {
-            console.log("Send:", user_input.value, "element:", parent_element);
-        });
         return this.user_input_group;
     }
 }
@@ -192,8 +191,8 @@ class ToolButtonGroup {
         this.button_group = document.createElement("div");
         this.button_group.id = "airead-tool-button-group";
         this.button_group.classList.add("airead-tool-button-group");
-        this.copy_button = this.create_button("Copy", () => {});
         this.chat_button = this.create_button("Chat", () => {});
+        this.copy_button = this.create_button("Copy", () => {});
         this.parent_button = this.create_button("Parent", () => {});
 
         document.body.prepend(this.button_group);
@@ -236,7 +235,10 @@ class ToolButtonGroup {
             if (chat_button_text === "chat") {
                 // create new ChatUserInput if last sibling of element is not user_input
                 let last_child = element.parentNode.lastChild;
-                if (!last_child.classList.contains("airead-chat-user-input")) {
+                let no_user_input_exists = !last_child.classList.contains(
+                    "airead-chat-user-input-group"
+                );
+                if (no_user_input_exists) {
                     let chat_user_input_instance = new ChatUserInput();
                     let chat_user_group =
                         chat_user_input_instance.spawn(element);
@@ -246,7 +248,7 @@ class ToolButtonGroup {
             } else if (chat_button_text === "hide") {
                 // hide chat_user_input_group
                 let chat_user_input_group = element.parentNode.querySelector(
-                    ".airead-chat-user-input"
+                    ".airead-chat-user-input-group"
                 );
                 chat_user_input_group.style.display = "none";
                 this.chat_button.innerHTML = "Chat";
