@@ -1,6 +1,11 @@
 # AIRead
 An AI-assisted reading script in browsers.
 
+## Demo
+
+[![airead-demo-3](./examples/airead-demo-3.png)](./examples/airead-demo-3.mp4)
+
+
 ## Scripts
 
 Currently there are 4 files:
