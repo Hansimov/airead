@@ -1,12 +1,9 @@
 // ==UserScript==
-// @name         AIRead - Local
+// @name         AIRead
 // @namespace    http://tampermonkey.net/
 // @version      0.1
-// @description  (Local) An AI-assisted reading script in browsers.
+// @description  An AI-assisted reading script in browsers.
 // @author       Hansimov
-// @match        https://*.wikipedia.org/wiki/*
-// @match        https://ar5iv.labs.arxiv.org/html/*
-// @match        http://127.0.0.1:17777/*.html
 // @icon         https://raw.githubusercontent.com/Hansimov/openai-js/main/penrose.png
 // @connect      *
 // @grant        GM_xmlhttpRequest
@@ -65,7 +62,7 @@ function require_modules({ host = "127.0.0.1", port = 17777 } = {}) {
 
 const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
 
-async function process_stream_response(response, on_chunk) {
+async function process_stream_response(response, update_element, on_chunk) {
     const decoder = new TextDecoder("utf-8");
     function stringify_stream_bytes(bytes) {
         return decoder.decode(bytes);
@@ -102,6 +99,7 @@ async function process_stream_response(response, on_chunk) {
             let chunk = json_chunk.choices[0];
             if (on_chunk) {
                 content += on_chunk(chunk);
+                update_element.textContent = content;
             }
         }
     }
@@ -276,7 +274,6 @@ class ChatUserInput {
         return html;
     }
     get_last_assistant_chat_message_element() {
-        console.log("get_last_assistant_chat_message_element");
         let last_assistant_chat_message_element = null;
         let chat_messages = this.user_input_group.parentNode.querySelectorAll(
             ".airead-chat-message-assistant"
@@ -285,10 +282,6 @@ class ChatUserInput {
             last_assistant_chat_message_element =
                 chat_messages[chat_messages.length - 1];
         }
-        console.log(
-            "last_assistant_chat_message_element:",
-            last_assistant_chat_message_element
-        );
         return last_assistant_chat_message_element;
     }
     on_chunk(chunk) {
@@ -297,7 +290,6 @@ class ChatUserInput {
             // console.log("role:", delta.role);
         }
         if (delta.content) {
-            console.log(delta.content);
             return delta.content;
         }
         if (chunk.finish_reason === "stop") {
@@ -328,12 +320,6 @@ class ChatUserInput {
         user_input.addEventListener("keypress", (event) => {
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
-                console.log(
-                    "Send:",
-                    user_input.value,
-                    "element:",
-                    parent_element
-                );
                 let user_chat_message = new UserChatMessageElement({
                     role: "user",
                     content: user_input.value,
@@ -350,6 +336,8 @@ class ChatUserInput {
                     content: "",
                 });
                 assistant_chat_message.spawn(parent_element);
+                let last_assistant_chat_message_element =
+                    self.get_last_assistant_chat_message_element();
 
                 chat_completions({
                     messages: [
@@ -362,11 +350,13 @@ class ChatUserInput {
                     stream: true,
                 }).then((response) => {
                     console.log("User:", prompt);
-                    process_stream_response(response, self.on_chunk).then(
-                        (content) => {
-                            console.log(content);
-                        }
-                    );
+                    process_stream_response(
+                        response,
+                        last_assistant_chat_message_element,
+                        self.on_chunk
+                    ).then((content) => {
+                        console.log(content);
+                    });
                 });
             }
         });
