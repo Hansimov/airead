@@ -57,6 +57,7 @@ const AIREAD_CSS = `
 }
 .airead-chat-message-user {
     background-color: rgba(128, 255, 128, 0.1);
+    text-align: left;
 }
 
 .airead-note {
@@ -266,6 +267,22 @@ class ToolButtonGroup {
         this.copy_button.onclick = () => {
             console.log("Copy:", element.textContent);
         };
+
+        // find in children of element.parentNode,
+        // if any chat_user_input_group and display not "none", set chat_button text to "Hide"
+        // else set to "Chat"
+        let chat_user_input_groups = element.parentNode.querySelectorAll(
+            ".airead-chat-user-input-group"
+        );
+        let chat_button_text = "Chat";
+        for (let chat_user_input_group of chat_user_input_groups) {
+            if (chat_user_input_group.style.display !== "none") {
+                chat_button_text = "Hide";
+                break;
+            }
+        }
+        this.chat_button.innerHTML = chat_button_text;
+
         this.chat_button.onclick = () => {
             let chat_button_text = this.chat_button.innerHTML.toLowerCase();
             if (chat_button_text === "chat") {
