@@ -1,14 +1,177 @@
 // ==UserScript==
-// @name         AIRead
+// @name         AIRead - Local
 // @namespace    http://tampermonkey.net/
 // @version      0.1
-// @description  An AI-assisted reading script in browsers.
+// @description  (Local) An AI-assisted reading script in browsers.
 // @author       Hansimov
 // @match        https://*.wikipedia.org/wiki/*
 // @match        https://ar5iv.labs.arxiv.org/html/*
+// @match        http://127.0.0.1:17777/*.html
 // @icon         https://raw.githubusercontent.com/Hansimov/openai-js/main/penrose.png
+// @connect      *
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
+
+function require_module(url, cache = true) {
+    return new Promise(function (resolve, reject) {
+        if (!cache) {
+            url = url + `?ts=${new Date().getTime()}`;
+        }
+        GM.xmlHttpRequest({
+            method: "GET",
+            url: url,
+            onload: function (response) {
+                let module_element;
+                if (url.endsWith(".css")) {
+                    module_element = document.createElement("style");
+                } else {
+                    module_element = document.createElement("script");
+                }
+                module_element.innerHTML = response.responseText;
+                document.head.appendChild(module_element);
+                resolve();
+            },
+            onerror: function (error) {
+                reject(error);
+            },
+        });
+    });
+}
+
+function require_modules({ host = "127.0.0.1", port = 17777 } = {}) {
+    let jquery_js = "https://code.jquery.com/jquery-3.7.1.min.js";
+    let bootstrap_js =
+        "https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js";
+    let bootstrap_css =
+        "https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css";
+    let font_awesome_css =
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css";
+    let font_awesome_v4_css =
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/v4-shims.min.css";
+    let server = `http://${host}:${port}`;
+    let openai_user_js = `${server}/openai-js/openai.user.js`;
+    let pure_page_user_js = `${server}/purepage/purepage.user.js`;
+    let airead_user_js = `${server}/airead/airead.user.js`;
+    return Promise.all([
+        require_module(jquery_js),
+        require_module(bootstrap_js),
+        require_module(bootstrap_css),
+        require_module(font_awesome_css),
+        require_module(font_awesome_v4_css),
+        // require_module(openai_user_js, false),
+        require_module(pure_page_user_js, false),
+    ]);
+}
+
+const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
+
+async function process_stream_response(response, on_chunk) {
+    const decoder = new TextDecoder("utf-8");
+    function stringify_stream_bytes(bytes) {
+        return decoder.decode(bytes);
+    }
+    function jsonize_stream_data(data) {
+        var json_chunks = [];
+        data = data
+            .replace(/^data:\s*/gm, "")
+            .replace(/\[DONE\]/gm, "")
+            .split("\n")
+            .filter(function (line) {
+                return line.trim().length > 0;
+            })
+            .map(function (line) {
+                try {
+                    let json_chunk = JSON.parse(line.trim());
+                    json_chunks.push(json_chunk);
+                } catch {
+                    console.log(`Failed to parse: ${line}`);
+                }
+            });
+        return json_chunks;
+    }
+    let reader = response.response.getReader();
+    let content = "";
+
+    while (true) {
+        let { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+        let json_chunks = jsonize_stream_data(stringify_stream_bytes(value));
+        for (let json_chunk of json_chunks) {
+            let chunk = json_chunk.choices[0];
+            if (on_chunk) {
+                content += on_chunk(chunk);
+            }
+        }
+    }
+    return content;
+}
+
+function get_llm_models({ endpoint } = {}) {
+    return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: endpoint + "/v1/models",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            onload: function (response) {
+                let data = JSON.parse(response.responseText);
+                let models = data.data.map((item) => item.id);
+                resolve(models);
+            },
+            onerror: function (error) {
+                reject(error);
+            },
+        });
+    });
+}
+
+function chat_completions({
+    messages,
+    endpoint = LLM_ENDPOINT,
+    model = "mixtral-8x7b",
+    max_tokens = -1,
+    temperature = 0.5,
+    top_p = 0.95,
+    stream = false,
+} = {}) {
+    return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+            method: "POST",
+            url: endpoint + "/v1/chat/completions",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            data: JSON.stringify({
+                model: model,
+                messages: messages,
+                max_tokens: max_tokens,
+                temperature: temperature,
+                top_p: top_p,
+                stream: stream,
+            }),
+            responseType: stream ? "stream" : "json",
+            onloadstart: function (response) {
+                if (stream) {
+                    resolve(response);
+                }
+            },
+            onload: function (response) {
+                if (!stream) {
+                    let data = JSON.parse(response.responseText);
+                    let content = data.choices[0].message.content;
+                    resolve(content);
+                }
+            },
+            onerror: function (error) {
+                reject(error);
+            },
+        });
+    });
+}
 
 const AIREAD_CSS = `
 .pure-element {
@@ -112,6 +275,36 @@ class ChatUserInput {
         `;
         return html;
     }
+    get_last_assistant_chat_message_element() {
+        console.log("get_last_assistant_chat_message_element");
+        let last_assistant_chat_message_element = null;
+        let chat_messages = this.user_input_group.parentNode.querySelectorAll(
+            ".airead-chat-message-assistant"
+        );
+        if (chat_messages.length > 0) {
+            last_assistant_chat_message_element =
+                chat_messages[chat_messages.length - 1];
+        }
+        console.log(
+            "last_assistant_chat_message_element:",
+            last_assistant_chat_message_element
+        );
+        return last_assistant_chat_message_element;
+    }
+    on_chunk(chunk) {
+        let delta = chunk.delta;
+        if (delta.role) {
+            // console.log("role:", delta.role);
+        }
+        if (delta.content) {
+            console.log(delta.content);
+            return delta.content;
+        }
+        if (chunk.finish_reason === "stop") {
+            console.log("[Finished]");
+        }
+        return "";
+    }
     spawn(parent_element) {
         this.user_input_group = document.createElement("div");
         this.user_input_group.innerHTML = this.construct_html();
@@ -131,6 +324,7 @@ class ChatUserInput {
             },
             false
         );
+        let self = this;
         user_input.addEventListener("keypress", (event) => {
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -140,13 +334,40 @@ class ChatUserInput {
                     "element:",
                     parent_element
                 );
-                let chat_message = new ChatMessageElement({
+                let user_chat_message = new UserChatMessageElement({
                     role: "user",
                     content: user_input.value,
                 });
-                chat_message.spawn(parent_element);
-                user_input.value = "";
+                self.user_chat_message_element =
+                    user_chat_message.spawn(parent_element);
+
                 user_input.style.height = "auto";
+                let prompt = user_input.value;
+                user_input.value = "";
+
+                let assistant_chat_message = new AssistantChatMessageElement({
+                    role: "assistant",
+                    content: "",
+                });
+                assistant_chat_message.spawn(parent_element);
+
+                chat_completions({
+                    messages: [
+                        {
+                            role: "user",
+                            content: prompt,
+                        },
+                    ],
+                    model: "mixtral-8x7b",
+                    stream: true,
+                }).then((response) => {
+                    console.log("User:", prompt);
+                    process_stream_response(response, self.on_chunk).then(
+                        (content) => {
+                            console.log(content);
+                        }
+                    );
+                });
             }
         });
 
@@ -154,8 +375,32 @@ class ChatUserInput {
     }
 }
 
-class ChatMessageElement {
+class UserChatMessageElement {
     constructor({ role = "user", content = "" } = {}) {
+        this.role = role;
+        this.content = content;
+    }
+    construct_html() {
+        let html = `<p></p>`;
+        return html;
+    }
+    spawn(parent_element) {
+        this.message_element = document.createElement("p");
+        let user_input_group = parent_element.parentNode.querySelector(
+            ".airead-chat-user-input-group"
+        );
+        parent_element.parentNode.insertBefore(
+            this.message_element,
+            user_input_group
+        );
+        this.message_element.classList.add(`airead-chat-message-${this.role}`);
+        this.message_element.textContent = this.content;
+        return this.message_element;
+    }
+}
+
+class AssistantChatMessageElement {
+    constructor({ role = "assistant", content = "" } = {}) {
         this.role = role;
         this.content = content;
     }
@@ -343,13 +588,16 @@ class ToolButtonGroup {
 
 (function () {
     "use strict";
-    console.log("+ Plugin loaded: AIRead");
-    let selector = new PureElementsSelector();
-    window.pure_elements = selector.select();
-    selector.stylize();
-    apply_css();
-    let tool_button_group = new ToolButtonGroup();
-    for (let element of window.pure_elements) {
-        add_container_to_element(element, tool_button_group);
-    }
+    console.log("+ App loaded: AIRead (Local)");
+    require_modules().then(() => {
+        console.log("+ Plugin loaded: AIRead");
+        let selector = new PureElementsSelector();
+        window.pure_elements = selector.select();
+        selector.stylize();
+        apply_css();
+        let tool_button_group = new ToolButtonGroup();
+        for (let element of window.pure_elements) {
+            add_container_to_element(element, tool_button_group);
+        }
+    });
 })();
