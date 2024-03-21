@@ -273,6 +273,11 @@ class ChatUserInput {
         `;
         return html;
     }
+    get_current_pure_element() {
+        let current_pure_element =
+            this.user_input_group.parentNode.querySelector(".pure-element");
+        return current_pure_element;
+    }
     get_last_assistant_chat_message_element() {
         let last_assistant_chat_message_element = null;
         let chat_messages = this.user_input_group.parentNode.querySelectorAll(
@@ -339,14 +344,20 @@ class ChatUserInput {
                 let last_assistant_chat_message_element =
                     self.get_last_assistant_chat_message_element();
 
+                let context = this.get_current_pure_element().textContent;
                 chat_completions({
                     messages: [
+                        {
+                            role: "user",
+                            content: `Please response according to following context:\n
+                            \`\`\`${context}\`\`\`\n`,
+                        },
                         {
                             role: "user",
                             content: prompt,
                         },
                     ],
-                    model: "mixtral-8x7b",
+                    model: "nous-mixtral-8x7b",
                     stream: true,
                 }).then((response) => {
                     console.log("User:", prompt);
