@@ -385,7 +385,7 @@ class ElementContentConverter {
         }
         return text;
     }
-    get_text({ with_cites = true } = {}) {
+    get_text({ with_refs = true } = {}) {
         let element_copy = this.element.cloneNode(true);
         this.replace_math_with_latex({
             element: element_copy,
@@ -399,11 +399,14 @@ class ElementContentConverter {
         let ref_contents_list = Object.keys(ref_contents).map(
             (ref_id) => `- [#${ref_id}]: ${ref_contents[ref_id]}`
         );
-        // use \n join ref_contents
-        let ref_contents_text = ref_contents_list.join("\n\n");
-        let text = element_copy.textContent;
-        text = text + "\n\nReferences:\n\n" + ref_contents_text;
+        let ref_contents_text =
+            "\n\nReferences:\n\n" + ref_contents_list.join("\n\n");
 
+        let text = element_copy.textContent;
+        // if ref_contents is not empty, then append ref_contents_text to text
+        if (with_refs && ref_contents_list.length > 0) {
+            text = text + ref_contents_text;
+        }
         text = this.remove_whitespaces(text);
 
         console.log("text:", text);
@@ -981,7 +984,7 @@ class ToolButtonGroup {
         for (let element of window.pure_elements) {
             add_container_to_element(element, tool_button_group);
         }
-        let test_element = pure_elements[6];
+        let test_element = pure_elements[22];
         console.log(test_element);
         let converter = new ElementContentConverter(test_element);
         converter.get_text();
