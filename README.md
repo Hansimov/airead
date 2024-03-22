@@ -5,7 +5,7 @@ An AI-assisted reading script in browsers.
 
 For most users, click and install is all you need:
 
-- [<code>airead.stable.user.js</code>](https://github.com/Hansimov/airead/raw/main/airead.stable.user.js)
+- [<code>stable/airead.user.js</code>](https://github.com/Hansimov/airead/raw/main/stable/airead.user.js)
 
 As this script would request cross-origin resources (fetch js modules and post request to LLM endpoint), you need to grant the permission:
 
@@ -18,16 +18,16 @@ As this script would request cross-origin resources (fetch js modules and post r
 
 For developers, you might care about what these files do:
 
-- <code>airead.<b>stable</b>.user.js</code>
+- <code><b>stable</b>/airead.user.js</code>
   - stable release
 
-- <code>airead_module.<b>stable</b>.user.js</code>
+- <code><b>stable</b>/airead_module.user.js</code>
   - module script for stable version
   - released with stable version together
 
-- <code>airead.<b>dev</b>.user.js</code>
+- <code><b>dev</b>/airead.user.js</code>
   - dev version
   - used in development
-- <code>airead_module.<b>dev</b>.user.js</code>
+- <code><b>dev</b>/airead_module.user.js</code>
   - dev version of module script
   - used in development
