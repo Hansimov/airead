@@ -1,10 +1,9 @@
 // ==UserScript==
-// @name         AIRead
+// @name         (Dev) AIRead Module
 // @namespace    http://tampermonkey.net/
 // @version      0.1
-// @description  An AI-assisted reading script in browsers.
+// @description  (Dev) Module script for AIRead
 // @author       Hansimov
-// @icon         https://raw.githubusercontent.com/Hansimov/openai-js/main/penrose.png
 // @connect      *
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
@@ -35,7 +34,7 @@ function require_module(url, cache = true) {
     });
 }
 
-function require_modules({ host = "127.0.0.1", port = 17777 } = {}) {
+function require_modules(server = "http://127.0.0.1:17777") {
     let jquery_js = "https://code.jquery.com/jquery-3.7.1.min.js";
     let bootstrap_js =
         "https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js";
@@ -45,10 +44,7 @@ function require_modules({ host = "127.0.0.1", port = 17777 } = {}) {
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css";
     let font_awesome_v4_css =
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/v4-shims.min.css";
-    let server = `http://${host}:${port}`;
-    let openai_user_js = `${server}/openai-js/openai.user.js`;
     let pure_page_user_js = `${server}/purepage/purepage.user.js`;
-    let airead_user_js = `${server}/airead/airead.user.js`;
     return Promise.all([
         require_module(jquery_js),
         require_module(bootstrap_js),
