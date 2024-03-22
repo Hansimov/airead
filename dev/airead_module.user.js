@@ -348,6 +348,14 @@ class ElementContentConverter {
                     );
                 }
             }
+
+            let is_inline = math_tag.getAttribute("display") === "inline";
+            if (is_inline) {
+                latex_text = `$${latex_text}$`;
+            } else {
+                latex_text = `$$${latex_text}$$`;
+            }
+
             console.log("math:", math_tag, "to latex:", latex_text);
 
             if (is_replace) {
@@ -368,7 +376,12 @@ class ElementContentConverter {
             console.log("ref_id:", ref_id);
             let ref_element = document.querySelector(`[id='${ref_id}']`);
             if (ref_element) {
-                let ref_text = ref_element.textContent;
+                let ref_element_copy = ref_element.cloneNode(true);
+                this.replace_math_with_latex({
+                    element: ref_element_copy,
+                    is_replace: true,
+                });
+                let ref_text = ref_element_copy.textContent;
                 ref_contents[ref_id] = ref_text;
                 console.log("ref:", ref, "to link:", ref_text);
                 if (is_replace) {
@@ -377,6 +390,15 @@ class ElementContentConverter {
             }
         }
         return ref_contents;
+    }
+    refs_to_str(ref_contents) {
+        // ref_contents to list like `- [ref_id]: ref_content`
+        let ref_contents_list = Object.keys(ref_contents).map(
+            (ref_id) => `- [#${ref_id}]: ${ref_contents[ref_id]}`
+        );
+        let ref_contents_text =
+            "\n\nReferences:\n\n" + ref_contents_list.join("\n\n");
+        return ref_contents_text;
     }
     remove_whitespaces(text) {
         for (let regex in WHITESPACE_MAP) {
@@ -395,17 +417,11 @@ class ElementContentConverter {
             element: element_copy,
             is_replace: true,
         });
-        // ref_contents to list like `- [ref_id]: ref_content`
-        let ref_contents_list = Object.keys(ref_contents).map(
-            (ref_id) => `- [#${ref_id}]: ${ref_contents[ref_id]}`
-        );
-        let ref_contents_text =
-            "\n\nReferences:\n\n" + ref_contents_list.join("\n\n");
 
         let text = element_copy.textContent;
         // if ref_contents is not empty, then append ref_contents_text to text
-        if (with_refs && ref_contents_list.length > 0) {
-            text = text + ref_contents_text;
+        if (with_refs && Object.keys(ref_contents).length > 0) {
+            text = text + this.refs_to_str(ref_contents);
         }
         text = this.remove_whitespaces(text);
 
