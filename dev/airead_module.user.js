@@ -1168,7 +1168,7 @@ class SettingsModal {
                     let option = new Option(model, model);
                     models_select.append(option);
                 }
-                console.log(`Models from ${endpoint}:`, models);
+                console.log(`Get models from ${endpoint}:`, models);
             });
         }
     }
@@ -1262,7 +1262,7 @@ class SettingsModal {
 class ToolPanel {
     constructor() {
         this.create_panel();
-        this.create_buttons();
+        this.create_modal();
     }
     construct_html() {
         let html = `
@@ -1283,17 +1283,9 @@ class ToolPanel {
         this.panel_button = this.panel.querySelector(
             ".airead-tool-panel-button"
         );
+        let self = this;
         this.panel_button.onclick = () => {
-            let settings_modal_id = "settings-modal";
-            let settings_modal_parent = $(`#${settings_modal_id}`);
-            if (settings_modal_parent.length <= 0) {
-                let settings_modal = new SettingsModal({
-                    id: settings_modal_id,
-                });
-                settings_modal.spawn();
-                settings_modal_parent = $(`#${settings_modal_id}`);
-            }
-            settings_modal_parent.modal("show");
+            $(`#${self.settings_modal_id}`).modal("show");
         };
     }
     construct_endpoint_and_api_key_item_html() {
@@ -1316,13 +1308,16 @@ class ToolPanel {
         `;
         return html;
     }
-    create_buttons() {
-        // this.endpoint_and_api_key_item = document.createElement("div");
-        // this.endpoint_and_api_key_item.innerHTML =
-        //     this.construct_endpoint_and_api_key_item_html().trim();
-        // this.endpoint_and_api_key_item =
-        //     this.endpoint_and_api_key_item.firstChild;
-        // this.panel.parentNode.appendChild(this.endpoint_and_api_key_item);
+    create_modal() {
+        this.settings_modal_id = "settings-modal";
+        let settings_modal_parent = $(`#${this.settings_modal_id}`);
+        if (settings_modal_parent.length <= 0) {
+            let settings_modal = new SettingsModal({
+                id: this.settings_modal_id,
+            });
+            settings_modal.spawn();
+            settings_modal_parent = $(`#${this.settings_modal_id}`);
+        }
     }
 }
 
