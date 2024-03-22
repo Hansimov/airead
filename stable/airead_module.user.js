@@ -357,6 +357,27 @@ class ElementContentConverter {
             }
         }
     }
+    replace_ref_with_content({ element = null, is_replace = false } = {}) {
+        if (!element) {
+            element = this.element;
+        }
+        let refs = element.querySelectorAll("a[href^='#']");
+        let ref_contents = {};
+        for (let ref of refs) {
+            let ref_id = ref.getAttribute("href").slice(1);
+            console.log("ref_id:", ref_id);
+            let ref_element = document.querySelector(`[id='${ref_id}']`);
+            if (ref_element) {
+                let ref_text = ref_element.textContent;
+                ref_contents[ref_id] = ref_text;
+                console.log("ref:", ref, "to link:", ref_text);
+                if (is_replace) {
+                    ref.textContent += `<sup>#${ref_id}</sup>`;
+                }
+            }
+        }
+        return ref_contents;
+    }
     remove_whitespaces(text) {
         for (let regex in WHITESPACE_MAP) {
             let re = new RegExp(regex, "gm");
@@ -364,17 +385,29 @@ class ElementContentConverter {
         }
         return text;
     }
-    get_text() {
+    get_text({ with_cites = true } = {}) {
         let element_copy = this.element.cloneNode(true);
         this.replace_math_with_latex({
             element: element_copy,
             is_replace: true,
         });
+        let ref_contents = this.replace_ref_with_content({
+            element: element_copy,
+            is_replace: true,
+        });
+        // ref_contents to list like `- [ref_id]: ref_content`
+        let ref_contents_list = Object.keys(ref_contents).map(
+            (ref_id) => `- [#${ref_id}]: ${ref_contents[ref_id]}`
+        );
+        // use \n join ref_contents
+        let ref_contents_text = ref_contents_list.join("\n\n");
         let text = element_copy.textContent;
+        text = text + "\n\nReferences:\n\n" + ref_contents_text;
+
         text = this.remove_whitespaces(text);
 
         console.log("text:", text);
-        return element_copy.textContent;
+        return text;
     }
 }
 
@@ -558,6 +591,11 @@ const AIREAD_CSS = `
 }
 .airead-chat-message-user {
     background-color: rgba(128, 255, 128, 0.1);
+    text-align: left;
+}
+
+.airead-chat-message-assistant {
+    background-color: rgba(180, 180, 255, 0.1);
     text-align: left;
 }
 
