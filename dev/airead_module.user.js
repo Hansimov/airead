@@ -446,6 +446,7 @@ function get_element_text(element) {
 // ===================== OpenAI Start ===================== //
 
 const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
+const LLM_API_KEY = "sk-xxxx";
 
 async function process_stream_response(response, update_element, on_chunk) {
     const decoder = new TextDecoder("utf-8");
@@ -1133,20 +1134,49 @@ class SettingsModal {
             max_output_tokens_widget_parent
         );
     }
-    bind_buttons() {
-        let self = this;
-        this.widget.find(`#${this.save_button_id}`).on("click", function () {
-            let endpoint = $(`#${self.endpoint_id}`).val();
-            let api_key = $(`#${self.api_key_id}`).val();
-            // get_llm_models, then set options to models select
+    set_endpoint_and_api_key() {
+        // get endpoint and api_key with GM.getValue
+        Promise.all([
+            GM.getValue("airead_llm_endpoint", LLM_ENDPOINT).then(
+                (endpoint) => {
+                    $(`#${this.endpoint_id}`).val(endpoint);
+                }
+            ),
+            GM.getValue("airead_llm_api_key", LLM_API_KEY).then((api_key) => {
+                $(`#${this.api_key_id}`).val(api_key);
+            }),
+        ]).then(() => {
+            this.set_models_select();
+        });
+    }
+    save_endpoint_and_api_key() {
+        let endpoint = $(`#${this.endpoint_id}`).val();
+        let api_key = $(`#${this.api_key_id}`).val();
+        return Promise.all([
+            GM.setValue("airead_llm_endpoint", endpoint),
+            GM.setValue("airead_llm_api_key", api_key),
+        ]);
+    }
+    set_models_select() {
+        let endpoint = $(`#${this.endpoint_id}`).val();
+        let api_key = $(`#${this.api_key_id}`).val();
+        if (endpoint) {
             get_llm_models({ endpoint: endpoint }).then((models) => {
-                let models_select = $(`#${self.models_id}`);
+                let models_select = $(`#${this.models_id}`);
                 models_select.empty();
                 for (let model of models) {
                     let option = new Option(model, model);
                     models_select.append(option);
                 }
                 console.log(`Models from ${endpoint}:`, models);
+            });
+        }
+    }
+    bind_buttons() {
+        let self = this;
+        this.widget.find(`#${this.save_button_id}`).on("click", function () {
+            self.save_endpoint_and_api_key().then(() => {
+                self.set_models_select();
             });
         });
     }
@@ -1210,6 +1240,7 @@ class SettingsModal {
         this.create_temperature_widget();
         this.create_top_p_widget();
         this.create_max_output_tokens_widget();
+        this.set_endpoint_and_api_key();
         this.bind_buttons();
     }
     append_to_body() {
