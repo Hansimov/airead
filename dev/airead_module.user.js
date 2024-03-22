@@ -637,7 +637,7 @@ const AIREAD_CSS = `
 .airead-tool-panel-button {
     border: none;
     background-color: transparent;
-    font-size: 24px;
+    font-size: 32px;
 }
 `;
 
@@ -1073,8 +1073,9 @@ class RangeNumberWidget {
 class SettingsModal {
     constructor({ id = "settings" } = {}) {
         this.id = id;
-        this.name_id = `${this.id}-name`;
-        this.api_key_id = `${this.id}-model`;
+        this.endpoint_id = `${this.id}-endpoint`;
+        this.api_key_id = `${this.id}-api-key`;
+        this.models_id = `${this.id}-models`;
         this.temperature_id = `${this.id}-temperature`;
         this.top_p_id = `${this.id}-top-p`;
         this.max_output_tokens_id = `${this.id}-max-output-tokens`;
@@ -1132,6 +1133,23 @@ class SettingsModal {
             max_output_tokens_widget_parent
         );
     }
+    bind_buttons() {
+        let self = this;
+        this.widget.find(`#${this.save_button_id}`).on("click", function () {
+            let endpoint = $(`#${self.endpoint_id}`).val();
+            let api_key = $(`#${self.api_key_id}`).val();
+            // get_llm_models, then set options to models select
+            get_llm_models({ endpoint: endpoint }).then((models) => {
+                let models_select = $(`#${self.models_id}`);
+                models_select.empty();
+                for (let model of models) {
+                    let option = new Option(model, model);
+                    models_select.append(option);
+                }
+                console.log(`Models from ${endpoint}:`, models);
+            });
+        });
+    }
     create_widget() {
         this.widget_html = `
         <div id="${this.id}" data-bs-backdrop="static" class="modal" role="dialog">
@@ -1144,13 +1162,18 @@ class SettingsModal {
                     <div class="modal-body">
                         <!-- Endpoint -->
                         <div class="form-floating mb-2">
-                            <input id="${this.name_id}" class="form-control" type="text"/>
+                            <input id="${this.endpoint_id}" class="form-control" type="text"/>
                             <label class="form-label">Endpoint</label>
                         </div>
                         <!-- API Key -->
                         <div class="form-floating mb-2">
                             <input id="${this.api_key_id}" class="form-control" type="text"/>
                             <label class="form-label">API Key</label>
+                        </div>
+                        <!-- Models -->
+                        <div class="form-floating mb-2">
+                            <select class="form-select" id="${this.models_id}"></select>
+                            <label class="form-label">Models</label>
                         </div>
                         <!-- system prompt -->
                         <div class="form-floating mb-2">
@@ -1175,7 +1198,7 @@ class SettingsModal {
                     </div>
                     <div class="modal-footer justify-content-end">
                         <button id="${this.save_button_id}" class="btn btn-success">Save</button>
-                        <button id="${this.default_button_id}" class="btn btn-primary">Set to default</button>
+                        <button id="${this.default_button_id}" class="btn btn-primary">Default</button>
                         <button id="${this.close_button_id}" class="btn btn-secondary"
                             data-bs-dismiss="modal">Close</button>
                     </div>
@@ -1187,6 +1210,7 @@ class SettingsModal {
         this.create_temperature_widget();
         this.create_top_p_widget();
         this.create_max_output_tokens_widget();
+        this.bind_buttons();
     }
     append_to_body() {
         $("body").append(this.widget);
@@ -1230,23 +1254,16 @@ class ToolPanel {
             ".airead-tool-panel-button"
         );
         this.panel_button.onclick = () => {
-            // toggle the visibility of the endpoint_and_api_key_item
-            // let display = this.endpoint_and_api_key_item.style.display;
-            // if (display === "none") {
-            //     this.endpoint_and_api_key_item.style.display = "block";
-            // } else {
-            //     this.endpoint_and_api_key_item.style.display = "none";
-            // }
             let settings_modal_id = "settings-modal";
-            let new_agent_modal_widget_parent = $(`#${settings_modal_id}`);
-            if (new_agent_modal_widget_parent.length <= 0) {
-                let new_agent_modal_widget = new SettingsModal({
+            let settings_modal_parent = $(`#${settings_modal_id}`);
+            if (settings_modal_parent.length <= 0) {
+                let settings_modal = new SettingsModal({
                     id: settings_modal_id,
                 });
-                new_agent_modal_widget.spawn();
-                new_agent_modal_widget_parent = $(`#${settings_modal_id}`);
+                settings_modal.spawn();
+                settings_modal_parent = $(`#${settings_modal_id}`);
             }
-            new_agent_modal_widget_parent.modal("show");
+            settings_modal_parent.modal("show");
         };
     }
     construct_endpoint_and_api_key_item_html() {
