@@ -8,6 +8,8 @@
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
+// ===================== RequireModules Start ===================== //
+
 function require_module(url, cache = true) {
     return new Promise(function (resolve, reject) {
         if (!cache) {
@@ -52,6 +54,8 @@ function require_modules() {
         require_module(font_awesome_v4_css),
     ]);
 }
+
+// ===================== RequireModules End ===================== //
 
 // ===================== PurePage Start ===================== //
 
@@ -307,6 +311,73 @@ class PureElementsSelector {
     }
 }
 
+const LATEX_FORMAT_MAP = {
+    "\\\\math((bf)|(bb))": "",
+    "\\\\operatorname": "",
+};
+const WHITESPACE_MAP = {
+    "\\s+": " ",
+    "\\n{3,}": "\\n\\n",
+};
+
+class ElementContentConverter {
+    constructor(element) {
+        this.element = element;
+    }
+    replace_math_with_latex({
+        element = null,
+        is_replace = false,
+        keep_format = false,
+    } = {}) {
+        if (!element) {
+            element = this.element;
+        }
+        // find math tags in math_element
+        let math_tags = element.querySelectorAll("math");
+        // extract latex from math tags, and replace math element with latex
+        for (let math_tag of math_tags) {
+            let latex_text = math_tag.getAttribute("alttext");
+            latex_text = latex_text.replace("\\displaystyle", "");
+
+            if (!keep_format) {
+                for (let regex in LATEX_FORMAT_MAP) {
+                    let re = new RegExp(regex, "gm");
+                    latex_text = latex_text.replace(
+                        re,
+                        LATEX_FORMAT_MAP[regex]
+                    );
+                }
+            }
+            console.log("math:", math_tag, "to latex:", latex_text);
+
+            if (is_replace) {
+                let latex_element = document.createElement("span");
+                latex_element.textContent = latex_text;
+                math_tag.replaceWith(latex_element);
+            }
+        }
+    }
+    remove_whitespaces(text) {
+        for (let regex in WHITESPACE_MAP) {
+            let re = new RegExp(regex, "gm");
+            text = text.replace(re, WHITESPACE_MAP[regex]);
+        }
+        return text;
+    }
+    get_text() {
+        let element_copy = this.element.cloneNode(true);
+        this.replace_math_with_latex({
+            element: element_copy,
+            is_replace: true,
+        });
+        let text = element_copy.textContent;
+        text = this.remove_whitespaces(text);
+
+        console.log("text:", text);
+        return element_copy.textContent;
+    }
+}
+
 // Export function
 
 function purepage() {
@@ -314,6 +385,11 @@ function purepage() {
     let pure_elements = selector.select();
     selector.stylize();
     return pure_elements;
+}
+
+function get_element_text(element) {
+    let converter = new ElementContentConverter(element);
+    return converter.get_text();
 }
 
 // ===================== PurePage End ===================== //
@@ -608,7 +684,7 @@ class ChatUserInput {
                 let last_assistant_chat_message_element =
                     self.get_last_assistant_chat_message_element();
 
-                let context = this.get_current_pure_element().textContent;
+                let context = get_element_text(this.get_current_pure_element());
                 context = context.replace(/\s+/g, " ");
                 chat_completions({
                     messages: [
@@ -741,7 +817,7 @@ class ToolButtonGroup {
         this.button_group.id = "airead-tool-button-group";
         this.button_group.classList.add("airead-tool-button-group");
         this.chat_button = this.create_button("Chat", () => {});
-        this.copy_button = this.create_button("Copy", () => {});
+        this.copy_button = this.create_button("Print", () => {});
         this.parent_button = this.create_button("Parent", () => {});
 
         document.body.prepend(this.button_group);
@@ -777,9 +853,8 @@ class ToolButtonGroup {
     }
     bind_buttons_func_to_element(element) {
         this.copy_button.onclick = () => {
-            console.log("Copy:", element.textContent);
+            console.log("Print:", get_element_text(element));
         };
-
         // find in children of element.parentNode,
         // if any chat_user_input_group and display not "none", set chat_button text to "Hide"
         // else set to "Chat"
@@ -868,6 +943,9 @@ class ToolButtonGroup {
         for (let element of window.pure_elements) {
             add_container_to_element(element, tool_button_group);
         }
-        console.log(pure_elements[1]);
+        let test_element = pure_elements[26];
+        console.log(test_element);
+        let converter = new ElementContentConverter(test_element);
+        converter.get_text();
     });
 })();
