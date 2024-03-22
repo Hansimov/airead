@@ -1,23 +1,23 @@
 # AIRead
 An AI-assisted reading script in browsers.
 
-## Demo
+## Repo files description
 
-[![airead-demo-3](./examples/airead-demo-3.png)](./examples/airead-demo-3.mp4)
+For most users, you should only use this file:
 
+- [<code>airead.stable.user.js</code>](https://github.com/Hansimov/airead/raw/main/airead.stable.user.js)
+  - stable release
+  - click and install is all you need
 
-## Scripts
+For developers, you might care about these files:
 
-Currently there are 4 files:
+- <code>airead_module.<b>stable</b>.user.js</code>
+  - module script for stable version
+  - released with stable version together
 
-- airead.**stable**.user.js`
-  - Stable release with pinned versions
-  - Recommend for most users
-- airead.**latest**.user.js`
-  - Latest release with latest versions of modules
-  - Recommend for active testers and brave users
-- airead.**local**.user.js`
-  - Quick develop and test in local environments
-  - For developers
-- `airead.user.js`
-  - The module which is required by above scripts
+- <code>airead.<b>dev</b>.user.js</code>
+  - dev version
+  - only for developers
+- <code>airead_module.<b>dev</b>.user.js</code>
+  - Module script for dev version
+  - only for developers
