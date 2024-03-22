@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         AIRead Module
 // @namespace    http://tampermonkey.net/
-// @version      0.1.1
+// @version      0.0
 // @description  Module script for AIRead
 // @author       Hansimov
 // @connect      *
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
+
+// ===================== RequireModules Start ===================== //
 
 function require_module(url, cache = true) {
     return new Promise(function (resolve, reject) {
@@ -44,17 +46,355 @@ function require_modules() {
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css";
     let font_awesome_v4_css =
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/v4-shims.min.css";
-    let pure_page_user_js =
-        "https://github.com/Hansimov/purepage/raw/39b132bb4c67c0c471a2e3ca9a8d5286d19b21e0/purepage.user.js";
     return Promise.all([
         require_module(jquery_js),
         require_module(bootstrap_js),
         require_module(bootstrap_css),
         require_module(font_awesome_css),
         require_module(font_awesome_v4_css),
-        require_module(pure_page_user_js, false),
     ]);
 }
+
+// ===================== RequireModules End ===================== //
+
+// ===================== PurePage Start ===================== //
+
+// Informative Tags
+
+const HEADER_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"];
+const TABLE_TAGS = ["table"];
+const PRE_TAGS = ["pre"];
+const BLOCKQUOTE_TAGS = ["blockquote"];
+const IMG_TAGS = ["img"];
+const CAPTION_TAGS = ["figcaption"];
+
+const GROUP_TAGS = ["div", "section"];
+const LIST_TAGS = ["ul", "ol"];
+const DEF_TAGS = ["dl"];
+const FIGURE_TAGS = ["figure"];
+
+const P_TAGS = ["p"];
+const LI_TAGS = ["li"];
+const DD_TAGS = ["dt", "dd"];
+const LINK_TAGS = ["a"];
+const SPAN_TAGS = ["span"];
+
+const MATH_TAGS = ["math"];
+const CODE_TAGS = ["code"];
+
+const ATOM_TAGS = [].concat(
+    HEADER_TAGS,
+    TABLE_TAGS,
+    PRE_TAGS,
+    BLOCKQUOTE_TAGS,
+    IMG_TAGS,
+    CAPTION_TAGS
+);
+const PARA_TAGS = [].concat(
+    GROUP_TAGS,
+    LIST_TAGS,
+    DEF_TAGS,
+    P_TAGS,
+    LI_TAGS,
+    DD_TAGS
+);
+
+const CUSTOM_CSS = `
+.pure-element {
+    // border: 1px solid #ffcccc !important;
+}
+
+.pure-element:hover {
+    // border: 1px solid azure !important;
+    // background-color: azure !important;
+}
+`;
+
+// Removed Elements classes and ids
+
+const COMMON_REMOVED_CLASSES = ["footer"];
+const WIKIPEDIA_REMOVED_CLASSES = [
+    "mw-editsection",
+    "(vector-)((user-links)|(menu-content)|(body-before-content)|(page-toolbar))",
+    "(footer-)((places)|(icons))",
+];
+const ARXIV_REMOVED_CLASSES = ["(ltx_)(page_footer)"];
+
+const REMOVED_CLASSES = [].concat(
+    COMMON_REMOVED_CLASSES,
+    WIKIPEDIA_REMOVED_CLASSES,
+    ARXIV_REMOVED_CLASSES
+);
+
+// Excluded Elements classes and ids
+
+const COMMON_EXCLUDED_CLASSES = [
+    "(?<!has)sidebar",
+    "related",
+    "comment",
+    "topbar",
+    "offcanvas",
+    "navbar",
+    "sf-hidden",
+    "noprint",
+];
+const WIKIPEDIA_EXCLUDED_CLASSES = [
+    "(mw-)((jump-link)|(valign-text-top))",
+    "language-list",
+    "p-lang-btn",
+    "(vector-)((header)|(column)|(sticky-pinned)|(dropdown-content)|(page-toolbar)|(body-before-content)|(settings))",
+    "navbox",
+    "catlinks",
+    "side-box",
+    "contentSub",
+    "siteNotice",
+];
+const ARXIV_EXCLUDED_CLASSES = ["(ltx_)((flex_break)|(pagination))"];
+const DOCS_PYTHON_EXCLUDED_CLASSES = ["clearer"];
+
+const EXCLUDED_CLASSES = [].concat(
+    REMOVED_CLASSES,
+    COMMON_EXCLUDED_CLASSES,
+    WIKIPEDIA_EXCLUDED_CLASSES,
+    ARXIV_EXCLUDED_CLASSES,
+    DOCS_PYTHON_EXCLUDED_CLASSES
+);
+
+// Helper Functions
+
+function get_tag(element) {
+    return element.tagName.toLowerCase();
+}
+
+function get_descendants(element) {
+    return Array.from(element.querySelectorAll("*"));
+}
+
+function get_parents(element) {
+    var parents = [];
+    var parent = element.parentElement;
+    while (parent) {
+        parents.push(parent);
+        parent = parent.parentElement;
+    }
+    return parents;
+}
+
+function is_elements_has_tags(elements, tags) {
+    return elements.some((element) => tags.includes(get_tag(element)));
+}
+
+function is_class_id_match_pattern(element, pattern_str) {
+    let pattern = new RegExp(pattern_str, "i");
+    let parents = get_parents(element);
+    let is_match =
+        pattern.test(element.className) ||
+        pattern.test(element.id) ||
+        parents.some((parent) => pattern.test(parent.className)) ||
+        parents.some((parent) => pattern.test(parent.id));
+    return is_match;
+}
+
+function calc_width_of_descendants(element) {
+    // width of descendants means: max count of child elements per level
+    let max_count = element.childElementCount;
+    let descendants = get_descendants(element);
+    for (let i = 0; i < descendants.length; i++) {
+        let count = descendants[i].childElementCount;
+        if (count > max_count) {
+            max_count = count;
+        }
+    }
+    return max_count;
+}
+
+// Main Classes
+
+class PureElementsSelector {
+    constructor() {}
+    is_atomized(element) {
+        const tag = get_tag(element);
+        const descendants = get_descendants(element);
+        const parents = get_parents(element);
+
+        if (ATOM_TAGS.includes(tag)) {
+            return !is_elements_has_tags(parents, ATOM_TAGS);
+        }
+        if (PARA_TAGS.includes(tag)) {
+            const is_parent_has_atom = is_elements_has_tags(parents, ATOM_TAGS);
+            const is_descendant_has_para = is_elements_has_tags(
+                descendants,
+                PARA_TAGS
+            );
+            // if descendant has atom, and descendant width is 1, then it is not atomized
+            const is_descendant_has_only_atom =
+                calc_width_of_descendants(element) == 1 &&
+                is_elements_has_tags(descendants, ATOM_TAGS);
+
+            return !(
+                is_parent_has_atom ||
+                is_descendant_has_para ||
+                is_descendant_has_only_atom
+            );
+        }
+        return false;
+    }
+    filter_removed_elements(elements) {
+        let output_elements = elements;
+        // if class+id of element+parents match any pattern in REMOVED_CLASSES, then remove it
+        for (let i = 0; i < REMOVED_CLASSES.length; i++) {
+            for (let j = 0; j < output_elements.length; j++) {
+                if (
+                    is_class_id_match_pattern(
+                        output_elements[j],
+                        REMOVED_CLASSES[i]
+                    )
+                ) {
+                    // remove element from DOM
+                    output_elements[j].remove();
+                    // remove element from output_elements
+                    output_elements.splice(j, 1);
+                }
+            }
+        }
+        return output_elements;
+    }
+    filter_excluded_elements(elements) {
+        let output_elements = elements;
+        // if class+id of element+parents match any pattern in EXCLUDED_CLASSES, then exclude it
+        for (let i = 0; i < EXCLUDED_CLASSES.length; i++) {
+            output_elements = output_elements.filter(
+                (element) =>
+                    !is_class_id_match_pattern(element, EXCLUDED_CLASSES[i])
+            );
+        }
+        return output_elements;
+    }
+    filter_atom_elements(elements) {
+        let output_elements = [];
+        for (let i = 0; i < elements.length; i++) {
+            if (this.is_atomized(elements[i])) {
+                output_elements.push(elements[i]);
+            }
+        }
+        return output_elements;
+    }
+    numbering_elements(elements) {
+        console.log("Pure elements count:", elements.length);
+        for (let i = 0; i < elements.length; i++) {
+            elements[i].classList.add("pure-element");
+            elements[i].classList.add(`pure-element-id-${i}`);
+        }
+        return elements;
+    }
+    stylize() {
+        let style_element = document.createElement("style");
+        style_element.textContent = CUSTOM_CSS;
+        document.head.appendChild(style_element);
+        for (let element of this.pure_elements) {
+            // if element in h1~h6, and it has no color set, then make it blue
+            if (element.tagName.match(/h[1-6]/i)) {
+                if (!element.style.color) {
+                    element.style.color = "blue";
+                }
+            }
+        }
+    }
+    select() {
+        let pure_elements = get_descendants(document.body);
+        this.filter_removed_elements(pure_elements);
+        pure_elements = this.filter_excluded_elements(pure_elements);
+        pure_elements = this.filter_atom_elements(pure_elements);
+        pure_elements = this.numbering_elements(pure_elements);
+        this.pure_elements = pure_elements;
+        return this.pure_elements;
+    }
+}
+
+const LATEX_FORMAT_MAP = {
+    "\\\\math((bf)|(bb))": "",
+    "\\\\operatorname": "",
+};
+const WHITESPACE_MAP = {
+    "\\s+": " ",
+    "\\n{3,}": "\\n\\n",
+};
+
+class ElementContentConverter {
+    constructor(element) {
+        this.element = element;
+    }
+    replace_math_with_latex({
+        element = null,
+        is_replace = false,
+        keep_format = false,
+    } = {}) {
+        if (!element) {
+            element = this.element;
+        }
+        // find math tags in math_element
+        let math_tags = element.querySelectorAll("math");
+        // extract latex from math tags, and replace math element with latex
+        for (let math_tag of math_tags) {
+            let latex_text = math_tag.getAttribute("alttext");
+            latex_text = latex_text.replace("\\displaystyle", "");
+
+            if (!keep_format) {
+                for (let regex in LATEX_FORMAT_MAP) {
+                    let re = new RegExp(regex, "gm");
+                    latex_text = latex_text.replace(
+                        re,
+                        LATEX_FORMAT_MAP[regex]
+                    );
+                }
+            }
+            console.log("math:", math_tag, "to latex:", latex_text);
+
+            if (is_replace) {
+                let latex_element = document.createElement("span");
+                latex_element.textContent = latex_text;
+                math_tag.replaceWith(latex_element);
+            }
+        }
+    }
+    remove_whitespaces(text) {
+        for (let regex in WHITESPACE_MAP) {
+            let re = new RegExp(regex, "gm");
+            text = text.replace(re, WHITESPACE_MAP[regex]);
+        }
+        return text;
+    }
+    get_text() {
+        let element_copy = this.element.cloneNode(true);
+        this.replace_math_with_latex({
+            element: element_copy,
+            is_replace: true,
+        });
+        let text = element_copy.textContent;
+        text = this.remove_whitespaces(text);
+
+        console.log("text:", text);
+        return element_copy.textContent;
+    }
+}
+
+// Export function
+
+function purepage() {
+    const selector = new PureElementsSelector();
+    let pure_elements = selector.select();
+    selector.stylize();
+    return pure_elements;
+}
+
+function get_element_text(element) {
+    let converter = new ElementContentConverter(element);
+    return converter.get_text();
+}
+
+// ===================== PurePage End ===================== //
+
+// ===================== OpenAI Start ===================== //
 
 const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
 
@@ -166,6 +506,10 @@ function chat_completions({
         });
     });
 }
+
+// ===================== OpenAI End ===================== //
+
+// ===================== AIRead Start ===================== //
 
 const AIREAD_CSS = `
 .pure-element {
@@ -340,7 +684,8 @@ class ChatUserInput {
                 let last_assistant_chat_message_element =
                     self.get_last_assistant_chat_message_element();
 
-                let context = this.get_current_pure_element().textContent;
+                let context = get_element_text(this.get_current_pure_element());
+                context = context.replace(/\s+/g, " ");
                 chat_completions({
                     messages: [
                         {
@@ -356,7 +701,8 @@ class ChatUserInput {
                     model: "nous-mixtral-8x7b",
                     stream: true,
                 }).then((response) => {
-                    console.log("User:", prompt);
+                    console.log(context);
+                    console.log(prompt);
                     process_stream_response(
                         response,
                         last_assistant_chat_message_element,
@@ -471,7 +817,7 @@ class ToolButtonGroup {
         this.button_group.id = "airead-tool-button-group";
         this.button_group.classList.add("airead-tool-button-group");
         this.chat_button = this.create_button("Chat", () => {});
-        this.copy_button = this.create_button("Copy", () => {});
+        this.copy_button = this.create_button("Print", () => {});
         this.parent_button = this.create_button("Parent", () => {});
 
         document.body.prepend(this.button_group);
@@ -507,9 +853,8 @@ class ToolButtonGroup {
     }
     bind_buttons_func_to_element(element) {
         this.copy_button.onclick = () => {
-            console.log("Copy:", element.textContent);
+            console.log("Print:", get_element_text(element));
         };
-
         // find in children of element.parentNode,
         // if any chat_user_input_group and display not "none", set chat_button text to "Hide"
         // else set to "Chat"
@@ -582,6 +927,8 @@ class ToolButtonGroup {
         }
     }
 }
+
+// ===================== AIRead End ===================== //
 
 (function () {
     "use strict";
