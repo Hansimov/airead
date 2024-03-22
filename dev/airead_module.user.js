@@ -6,6 +6,8 @@
 // @author       Hansimov
 // @connect      *
 // @grant        GM_xmlhttpRequest
+// @grant        GM.getValue
+// @grant        GM.setValue
 // ==/UserScript==
 
 // ===================== RequireModules Start ===================== //
@@ -356,8 +358,6 @@ class ElementContentConverter {
                 latex_text = `$$${latex_text}$$`;
             }
 
-            console.log("math:", math_tag, "to latex:", latex_text);
-
             if (is_replace) {
                 let latex_element = document.createElement("span");
                 latex_element.textContent = latex_text;
@@ -373,7 +373,6 @@ class ElementContentConverter {
         let ref_contents = {};
         for (let ref of refs) {
             let ref_id = ref.getAttribute("href").slice(1);
-            console.log("ref_id:", ref_id);
             let ref_element = document.querySelector(`[id='${ref_id}']`);
             if (ref_element) {
                 let ref_element_copy = ref_element.cloneNode(true);
@@ -383,7 +382,6 @@ class ElementContentConverter {
                 });
                 let ref_text = ref_element_copy.textContent;
                 ref_contents[ref_id] = ref_text;
-                console.log("ref:", ref, "to link:", ref_text);
                 if (is_replace) {
                     ref.textContent += `<sup>#${ref_id}</sup>`;
                 }
@@ -425,7 +423,6 @@ class ElementContentConverter {
         }
         text = this.remove_whitespaces(text);
 
-        console.log("text:", text);
         return text;
     }
 }
@@ -624,6 +621,23 @@ const AIREAD_CSS = `
     box-shadow: 0px 0px 4px gray;
     position: absolute;
     z-index: 1000;
+}
+
+.airead-tool-panel {
+    border: none;
+    position: fixed;
+    bottom: 50px;
+    right: 50px;
+    z-index: 1000;
+    opacity: 0;
+}
+.airead-tool-panel:hover {
+    opacity: 1;
+}
+.airead-tool-panel-button {
+    border: none;
+    background-color: transparent;
+    font-size: 24px;
 }
 `;
 
@@ -987,6 +1001,286 @@ class ToolButtonGroup {
 
 // ===================== AIRead End ===================== //
 
+// ===================== Widgets Start ===================== //
+
+class RangeNumberWidget {
+    constructor({
+        id = null,
+        label_text = null,
+        default_val = null,
+        min_val = null,
+        max_val = null,
+        step_val = null,
+        range_col = 8,
+        number_col = 4,
+    } = {}) {
+        this.id = id;
+        this.label_text = label_text;
+        this.default_val = default_val;
+        this.min_val = min_val;
+        this.max_val = max_val;
+        this.step_val = step_val;
+        this.range_col = range_col;
+        this.number_col = number_col;
+    }
+    spawn_in_parent(parent) {
+        this.create_widget();
+        this.bind_update_functions();
+        this.append_to_parent(parent);
+    }
+    remove() {
+        this.widget.remove();
+    }
+    create_widget() {
+        this.widget_html = `
+        <label class="col-form-label">${this.label_text}</label>
+            <div class="col-sm-${this.range_col} d-flex align-items-center">
+                <input id="${this.id}-range"
+                    type="range" value="${this.default_val}"
+                    min="${this.min_val}" max="${this.max_val}" step="${this.step_val}"
+                    class="form-range"
+                />
+            </div>
+            <div class="col-sm-${this.number_col}">
+                <input id="${this.id}-number"
+                    type="number" value="${this.default_val}"
+                    min="${this.min_val}" max="${this.max_val}" step="${this.step_val}"
+                    class="form-control"
+            />
+        </div>`;
+        this.widget = $(this.widget_html);
+    }
+    update_number_widget_value(value) {
+        $(`#${this.id}-number`).val(value);
+    }
+    update_range_widget_value(value) {
+        $(`#${this.id}-range`).val(value);
+    }
+    bind_update_functions() {
+        let self = this;
+        this.widget.find(`#${this.id}-range`).on("input", function () {
+            self.update_number_widget_value($(this).val());
+        });
+        this.widget.find(`#${this.id}-number`).on("input", function () {
+            self.update_range_widget_value($(this).val());
+        });
+    }
+    append_to_parent(parent) {
+        parent.append(this.widget);
+    }
+}
+
+class SettingsModal {
+    constructor({ id = "settings" } = {}) {
+        this.id = id;
+        this.name_id = `${this.id}-name`;
+        this.api_key_id = `${this.id}-model`;
+        this.temperature_id = `${this.id}-temperature`;
+        this.top_p_id = `${this.id}-top-p`;
+        this.max_output_tokens_id = `${this.id}-max-output-tokens`;
+        this.system_prompt_id = `${this.id}-system-prompt`;
+        this.save_button_id = `${this.id}-save-button`;
+        this.default_button_id = `${this.id}-default-button`;
+        this.close_button_id = `${this.id}-close-button`;
+    }
+    spawn() {
+        this.create_widget();
+        this.append_to_body();
+    }
+    remove() {
+        this.widget.remove();
+    }
+    create_temperature_widget() {
+        this.temperature_widget = new RangeNumberWidget({
+            id: this.temperature_id,
+            label_text: "Temperature",
+            default_val: 0.5,
+            min_val: 0,
+            max_val: 1,
+            step_val: 0.1,
+        });
+        let temperature_widget_parent = this.widget.find(
+            `#${this.temperature_id}`
+        );
+        this.temperature_widget.spawn_in_parent(temperature_widget_parent);
+    }
+    create_top_p_widget() {
+        this.top_p_widget = new RangeNumberWidget({
+            id: this.top_p_id,
+            label_text: "Top P",
+            default_val: 0.9,
+            min_val: 0.0,
+            max_val: 1.0,
+            step_val: 0.01,
+        });
+        let top_p_widget_parent = this.widget.find(`#${this.top_p_id}`);
+        this.top_p_widget.spawn_in_parent(top_p_widget_parent);
+    }
+    create_max_output_tokens_widget() {
+        this.max_output_tokens_widget = new RangeNumberWidget({
+            id: this.max_output_tokens_id,
+            label_text: "Max Output Tokens <code>(-1: auto)</code>",
+            default_val: -1,
+            min_val: -1,
+            max_val: 32768,
+            step_val: 1,
+        });
+        let max_output_tokens_widget_parent = this.widget.find(
+            `#${this.max_output_tokens_id}`
+        );
+        this.max_output_tokens_widget.spawn_in_parent(
+            max_output_tokens_widget_parent
+        );
+    }
+    create_widget() {
+        this.widget_html = `
+        <div id="${this.id}" data-bs-backdrop="static" class="modal" role="dialog">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Settings</h5>
+                        <button class="btn" data-bs-dismiss="modal">❌</button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Endpoint -->
+                        <div class="form-floating mb-2">
+                            <input id="${this.name_id}" class="form-control" type="text"/>
+                            <label class="form-label">Endpoint</label>
+                        </div>
+                        <!-- API Key -->
+                        <div class="form-floating mb-2">
+                            <input id="${this.api_key_id}" class="form-control" type="text"/>
+                            <label class="form-label">API Key</label>
+                        </div>
+                        <!-- system prompt -->
+                        <div class="form-floating mb-2">
+                            <textarea id="${this.system_prompt_id}" class="form-control" rows="3"></textarea>
+                            <label>System Prompt</label>
+                        </div>
+                        <a class="btn mx-0 px-0" data-bs-toggle="collapse" href="#new-agent-advanced-settings">
+                            <b>Advanced Settings ↓</b>
+                        </a>
+                        <div class="collapse" id="new-agent-advanced-settings">
+                            <!-- temperature -->
+                            <div id="${this.temperature_id}" class="row mb-0"">
+                            </div>
+                            <!-- top_p -->
+                            <div id="${this.top_p_id}" class="row mb-0"">
+                            </div>
+                            <!-- max output tokens -->
+                            <div id="${this.max_output_tokens_id}" class="row mb-2">
+                            </div>
+                            <!-- max history messages token -->
+                        </div>
+                    </div>
+                    <div class="modal-footer justify-content-end">
+                        <button id="${this.save_button_id}" class="btn btn-success">Save</button>
+                        <button id="${this.default_button_id}" class="btn btn-primary">Set to default</button>
+                        <button id="${this.close_button_id}" class="btn btn-secondary"
+                            data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+        this.widget = $(this.widget_html);
+        this.create_temperature_widget();
+        this.create_top_p_widget();
+        this.create_max_output_tokens_widget();
+    }
+    append_to_body() {
+        $("body").append(this.widget);
+        document.getElementById(`${this.system_prompt_id}`).addEventListener(
+            "input",
+            function () {
+                this.style.height = 0;
+                this.style.height = this.scrollHeight + 3 + "px";
+            },
+            false
+        );
+        $(`#${this.system_prompt_id}`)
+            .css("resize", "none")
+            .css("max-height", "200px");
+    }
+}
+
+class ToolPanel {
+    constructor() {
+        this.create_panel();
+        this.create_buttons();
+    }
+    construct_html() {
+        let html = `
+            <div class="airead-tool-panel">
+                <button class="airead-tool-panel-button">⚙️</button>
+            </div>
+        `;
+        return html;
+    }
+    create_panel() {
+        // create a panel which is sticky to the right bottom of the window
+        // the icon of the panel is a chat icon
+        this.panel = document.createElement("div");
+        this.panel.innerHTML = this.construct_html().trim();
+        this.panel = this.panel.firstChild;
+        console.log(this.panel);
+        document.body.appendChild(this.panel);
+        // bind function to panel button
+        this.panel_button = this.panel.querySelector(
+            ".airead-tool-panel-button"
+        );
+        this.panel_button.onclick = () => {
+            // toggle the visibility of the endpoint_and_api_key_item
+            // let display = this.endpoint_and_api_key_item.style.display;
+            // if (display === "none") {
+            //     this.endpoint_and_api_key_item.style.display = "block";
+            // } else {
+            //     this.endpoint_and_api_key_item.style.display = "none";
+            // }
+            let settings_modal_id = "settings-modal";
+            let new_agent_modal_widget_parent = $(`#${settings_modal_id}`);
+            if (new_agent_modal_widget_parent.length <= 0) {
+                let new_agent_modal_widget = new SettingsModal({
+                    id: settings_modal_id,
+                });
+                new_agent_modal_widget.spawn();
+                new_agent_modal_widget_parent = $(`#${settings_modal_id}`);
+            }
+            new_agent_modal_widget_parent.modal("show");
+        };
+    }
+    construct_endpoint_and_api_key_item_html() {
+        let html = `
+            <div class="row mt-2 no-gutters">
+                <div class="col pl-0">
+                    <input class="form-control endpoint-input" rows="1"
+                        placeholder="Input Endpoint URL, don't add /v1"
+                    ></input>
+                </div>
+                <div class="col pl-0">
+                    <input class="form-control api-key-input" rows="1"
+                        placeholder="Input API Key, then click ✔️"
+                    ></input>
+                </div>
+                <div class="col-auto px-0">
+                    <button class="btn submit-endpoint-button">✔️</button>
+                </div>
+            </div>
+        `;
+        return html;
+    }
+    create_buttons() {
+        // this.endpoint_and_api_key_item = document.createElement("div");
+        // this.endpoint_and_api_key_item.innerHTML =
+        //     this.construct_endpoint_and_api_key_item_html().trim();
+        // this.endpoint_and_api_key_item =
+        //     this.endpoint_and_api_key_item.firstChild;
+        // this.panel.parentNode.appendChild(this.endpoint_and_api_key_item);
+    }
+}
+
+// ===================== Widgets End ===================== //
+
 (function () {
     "use strict";
     console.log("+ App loaded: AIRead (Local)");
@@ -996,6 +1290,8 @@ class ToolButtonGroup {
         window.pure_elements = selector.select();
         selector.stylize();
         apply_css();
+
+        let tool_panel = new ToolPanel();
         let tool_button_group = new ToolButtonGroup();
         for (let element of window.pure_elements) {
             add_container_to_element(element, tool_button_group);

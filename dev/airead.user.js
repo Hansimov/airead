@@ -10,7 +10,9 @@
 // @icon         https://raw.githubusercontent.com/Hansimov/airead/main/logo.png
 // @connect      *
 // @grant        GM_xmlhttpRequest
-// @require      http://127.0.0.1:17777/airead/dev/airead_module.user.js?ts=123
+// @grant        GM.getValue
+// @grant        GM.setValue
+// @require      http://127.0.0.1:17777/airead/dev/airead_module.user.js?ts=124
 // ==/UserScript==
 
 (function () {
