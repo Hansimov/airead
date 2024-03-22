@@ -1278,7 +1278,6 @@ class ToolPanel {
         this.panel = document.createElement("div");
         this.panel.innerHTML = this.construct_html().trim();
         this.panel = this.panel.firstChild;
-        console.log(this.panel);
         document.body.appendChild(this.panel);
         // bind function to panel button
         this.panel_button = this.panel.querySelector(
@@ -1338,7 +1337,6 @@ class ToolPanel {
         window.pure_elements = selector.select();
         selector.stylize();
         apply_css();
-
         let tool_panel = new ToolPanel();
         let tool_button_group = new ToolButtonGroup();
         for (let element of window.pure_elements) {

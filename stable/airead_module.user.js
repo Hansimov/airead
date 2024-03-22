@@ -6,6 +6,8 @@
 // @author       Hansimov
 // @connect      *
 // @grant        GM_xmlhttpRequest
+// @grant        GM.getValue
+// @grant        GM.setValue
 // ==/UserScript==
 
 // ===================== RequireModules Start ===================== //
@@ -348,7 +350,13 @@ class ElementContentConverter {
                     );
                 }
             }
-            console.log("math:", math_tag, "to latex:", latex_text);
+
+            let is_inline = math_tag.getAttribute("display") === "inline";
+            if (is_inline) {
+                latex_text = `$${latex_text}$`;
+            } else {
+                latex_text = `$$${latex_text}$$`;
+            }
 
             if (is_replace) {
                 let latex_element = document.createElement("span");
@@ -365,18 +373,30 @@ class ElementContentConverter {
         let ref_contents = {};
         for (let ref of refs) {
             let ref_id = ref.getAttribute("href").slice(1);
-            console.log("ref_id:", ref_id);
             let ref_element = document.querySelector(`[id='${ref_id}']`);
             if (ref_element) {
-                let ref_text = ref_element.textContent;
+                let ref_element_copy = ref_element.cloneNode(true);
+                this.replace_math_with_latex({
+                    element: ref_element_copy,
+                    is_replace: true,
+                });
+                let ref_text = ref_element_copy.textContent;
                 ref_contents[ref_id] = ref_text;
-                console.log("ref:", ref, "to link:", ref_text);
                 if (is_replace) {
                     ref.textContent += `<sup>#${ref_id}</sup>`;
                 }
             }
         }
         return ref_contents;
+    }
+    refs_to_str(ref_contents) {
+        // ref_contents to list like `- [ref_id]: ref_content`
+        let ref_contents_list = Object.keys(ref_contents).map(
+            (ref_id) => `- [#${ref_id}]: ${ref_contents[ref_id]}`
+        );
+        let ref_contents_text =
+            "\n\nReferences:\n\n" + ref_contents_list.join("\n\n");
+        return ref_contents_text;
     }
     remove_whitespaces(text) {
         for (let regex in WHITESPACE_MAP) {
@@ -385,7 +405,7 @@ class ElementContentConverter {
         }
         return text;
     }
-    get_text({ with_cites = true } = {}) {
+    get_text({ with_refs = true } = {}) {
         let element_copy = this.element.cloneNode(true);
         this.replace_math_with_latex({
             element: element_copy,
@@ -395,18 +415,14 @@ class ElementContentConverter {
             element: element_copy,
             is_replace: true,
         });
-        // ref_contents to list like `- [ref_id]: ref_content`
-        let ref_contents_list = Object.keys(ref_contents).map(
-            (ref_id) => `- [#${ref_id}]: ${ref_contents[ref_id]}`
-        );
-        // use \n join ref_contents
-        let ref_contents_text = ref_contents_list.join("\n\n");
-        let text = element_copy.textContent;
-        text = text + "\n\nReferences:\n\n" + ref_contents_text;
 
+        let text = element_copy.textContent;
+        // if ref_contents is not empty, then append ref_contents_text to text
+        if (with_refs && Object.keys(ref_contents).length > 0) {
+            text = text + this.refs_to_str(ref_contents);
+        }
         text = this.remove_whitespaces(text);
 
-        console.log("text:", text);
         return text;
     }
 }
@@ -430,6 +446,7 @@ function get_element_text(element) {
 // ===================== OpenAI Start ===================== //
 
 const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
+const LLM_API_KEY = "sk-xxxx";
 
 async function process_stream_response(response, update_element, on_chunk) {
     const decoder = new TextDecoder("utf-8");
@@ -605,6 +622,23 @@ const AIREAD_CSS = `
     box-shadow: 0px 0px 4px gray;
     position: absolute;
     z-index: 1000;
+}
+
+.airead-tool-panel {
+    border: none;
+    position: fixed;
+    bottom: 50px;
+    right: 50px;
+    z-index: 1000;
+    opacity: 0;
+}
+.airead-tool-panel:hover {
+    opacity: 1;
+}
+.airead-tool-panel-button {
+    border: none;
+    background-color: transparent;
+    font-size: 32px;
 }
 `;
 
@@ -968,6 +1002,332 @@ class ToolButtonGroup {
 
 // ===================== AIRead End ===================== //
 
+// ===================== Widgets Start ===================== //
+
+class RangeNumberWidget {
+    constructor({
+        id = null,
+        label_text = null,
+        default_val = null,
+        min_val = null,
+        max_val = null,
+        step_val = null,
+        range_col = 8,
+        number_col = 4,
+    } = {}) {
+        this.id = id;
+        this.label_text = label_text;
+        this.default_val = default_val;
+        this.min_val = min_val;
+        this.max_val = max_val;
+        this.step_val = step_val;
+        this.range_col = range_col;
+        this.number_col = number_col;
+    }
+    spawn_in_parent(parent) {
+        this.create_widget();
+        this.bind_update_functions();
+        this.append_to_parent(parent);
+    }
+    remove() {
+        this.widget.remove();
+    }
+    create_widget() {
+        this.widget_html = `
+        <label class="col-form-label">${this.label_text}</label>
+            <div class="col-sm-${this.range_col} d-flex align-items-center">
+                <input id="${this.id}-range"
+                    type="range" value="${this.default_val}"
+                    min="${this.min_val}" max="${this.max_val}" step="${this.step_val}"
+                    class="form-range"
+                />
+            </div>
+            <div class="col-sm-${this.number_col}">
+                <input id="${this.id}-number"
+                    type="number" value="${this.default_val}"
+                    min="${this.min_val}" max="${this.max_val}" step="${this.step_val}"
+                    class="form-control"
+            />
+        </div>`;
+        this.widget = $(this.widget_html);
+    }
+    update_number_widget_value(value) {
+        $(`#${this.id}-number`).val(value);
+    }
+    update_range_widget_value(value) {
+        $(`#${this.id}-range`).val(value);
+    }
+    bind_update_functions() {
+        let self = this;
+        this.widget.find(`#${this.id}-range`).on("input", function () {
+            self.update_number_widget_value($(this).val());
+        });
+        this.widget.find(`#${this.id}-number`).on("input", function () {
+            self.update_range_widget_value($(this).val());
+        });
+    }
+    append_to_parent(parent) {
+        parent.append(this.widget);
+    }
+}
+
+class SettingsModal {
+    constructor({ id = "settings" } = {}) {
+        this.id = id;
+        this.endpoint_id = `${this.id}-endpoint`;
+        this.api_key_id = `${this.id}-api-key`;
+        this.models_id = `${this.id}-models`;
+        this.temperature_id = `${this.id}-temperature`;
+        this.top_p_id = `${this.id}-top-p`;
+        this.max_output_tokens_id = `${this.id}-max-output-tokens`;
+        this.system_prompt_id = `${this.id}-system-prompt`;
+        this.save_button_id = `${this.id}-save-button`;
+        this.default_button_id = `${this.id}-default-button`;
+        this.close_button_id = `${this.id}-close-button`;
+    }
+    spawn() {
+        this.create_widget();
+        this.append_to_body();
+    }
+    remove() {
+        this.widget.remove();
+    }
+    create_temperature_widget() {
+        this.temperature_widget = new RangeNumberWidget({
+            id: this.temperature_id,
+            label_text: "Temperature",
+            default_val: 0.5,
+            min_val: 0,
+            max_val: 1,
+            step_val: 0.1,
+        });
+        let temperature_widget_parent = this.widget.find(
+            `#${this.temperature_id}`
+        );
+        this.temperature_widget.spawn_in_parent(temperature_widget_parent);
+    }
+    create_top_p_widget() {
+        this.top_p_widget = new RangeNumberWidget({
+            id: this.top_p_id,
+            label_text: "Top P",
+            default_val: 0.9,
+            min_val: 0.0,
+            max_val: 1.0,
+            step_val: 0.01,
+        });
+        let top_p_widget_parent = this.widget.find(`#${this.top_p_id}`);
+        this.top_p_widget.spawn_in_parent(top_p_widget_parent);
+    }
+    create_max_output_tokens_widget() {
+        this.max_output_tokens_widget = new RangeNumberWidget({
+            id: this.max_output_tokens_id,
+            label_text: "Max Output Tokens <code>(-1: auto)</code>",
+            default_val: -1,
+            min_val: -1,
+            max_val: 32768,
+            step_val: 1,
+        });
+        let max_output_tokens_widget_parent = this.widget.find(
+            `#${this.max_output_tokens_id}`
+        );
+        this.max_output_tokens_widget.spawn_in_parent(
+            max_output_tokens_widget_parent
+        );
+    }
+    set_endpoint_and_api_key() {
+        // get endpoint and api_key with GM.getValue
+        Promise.all([
+            GM.getValue("airead_llm_endpoint", LLM_ENDPOINT).then(
+                (endpoint) => {
+                    $(`#${this.endpoint_id}`).val(endpoint);
+                }
+            ),
+            GM.getValue("airead_llm_api_key", LLM_API_KEY).then((api_key) => {
+                $(`#${this.api_key_id}`).val(api_key);
+            }),
+        ]).then(() => {
+            this.set_models_select();
+        });
+    }
+    save_endpoint_and_api_key() {
+        let endpoint = $(`#${this.endpoint_id}`).val();
+        let api_key = $(`#${this.api_key_id}`).val();
+        return Promise.all([
+            GM.setValue("airead_llm_endpoint", endpoint),
+            GM.setValue("airead_llm_api_key", api_key),
+        ]);
+    }
+    set_models_select() {
+        let endpoint = $(`#${this.endpoint_id}`).val();
+        let api_key = $(`#${this.api_key_id}`).val();
+        if (endpoint) {
+            get_llm_models({ endpoint: endpoint }).then((models) => {
+                let models_select = $(`#${this.models_id}`);
+                models_select.empty();
+                for (let model of models) {
+                    let option = new Option(model, model);
+                    models_select.append(option);
+                }
+                console.log(`Models from ${endpoint}:`, models);
+            });
+        }
+    }
+    bind_buttons() {
+        let self = this;
+        this.widget.find(`#${this.save_button_id}`).on("click", function () {
+            self.save_endpoint_and_api_key().then(() => {
+                self.set_models_select();
+            });
+        });
+    }
+    create_widget() {
+        this.widget_html = `
+        <div id="${this.id}" data-bs-backdrop="static" class="modal" role="dialog">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Settings</h5>
+                        <button class="btn" data-bs-dismiss="modal">❌</button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Endpoint -->
+                        <div class="form-floating mb-2">
+                            <input id="${this.endpoint_id}" class="form-control" type="text"/>
+                            <label class="form-label">Endpoint</label>
+                        </div>
+                        <!-- API Key -->
+                        <div class="form-floating mb-2">
+                            <input id="${this.api_key_id}" class="form-control" type="text"/>
+                            <label class="form-label">API Key</label>
+                        </div>
+                        <!-- Models -->
+                        <div class="form-floating mb-2">
+                            <select class="form-select" id="${this.models_id}"></select>
+                            <label class="form-label">Models</label>
+                        </div>
+                        <!-- system prompt -->
+                        <div class="form-floating mb-2">
+                            <textarea id="${this.system_prompt_id}" class="form-control" rows="3"></textarea>
+                            <label>System Prompt</label>
+                        </div>
+                        <a class="btn mx-0 px-0" data-bs-toggle="collapse" href="#new-agent-advanced-settings">
+                            <b>Advanced Settings ↓</b>
+                        </a>
+                        <div class="collapse" id="new-agent-advanced-settings">
+                            <!-- temperature -->
+                            <div id="${this.temperature_id}" class="row mb-0"">
+                            </div>
+                            <!-- top_p -->
+                            <div id="${this.top_p_id}" class="row mb-0"">
+                            </div>
+                            <!-- max output tokens -->
+                            <div id="${this.max_output_tokens_id}" class="row mb-2">
+                            </div>
+                            <!-- max history messages token -->
+                        </div>
+                    </div>
+                    <div class="modal-footer justify-content-end">
+                        <button id="${this.save_button_id}" class="btn btn-success">Save</button>
+                        <button id="${this.default_button_id}" class="btn btn-primary">Default</button>
+                        <button id="${this.close_button_id}" class="btn btn-secondary"
+                            data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+        this.widget = $(this.widget_html);
+        this.create_temperature_widget();
+        this.create_top_p_widget();
+        this.create_max_output_tokens_widget();
+        this.set_endpoint_and_api_key();
+        this.bind_buttons();
+    }
+    append_to_body() {
+        $("body").append(this.widget);
+        document.getElementById(`${this.system_prompt_id}`).addEventListener(
+            "input",
+            function () {
+                this.style.height = 0;
+                this.style.height = this.scrollHeight + 3 + "px";
+            },
+            false
+        );
+        $(`#${this.system_prompt_id}`)
+            .css("resize", "none")
+            .css("max-height", "200px");
+    }
+}
+
+class ToolPanel {
+    constructor() {
+        this.create_panel();
+        this.create_buttons();
+    }
+    construct_html() {
+        let html = `
+            <div class="airead-tool-panel">
+                <button class="airead-tool-panel-button">⚙️</button>
+            </div>
+        `;
+        return html;
+    }
+    create_panel() {
+        // create a panel which is sticky to the right bottom of the window
+        // the icon of the panel is a chat icon
+        this.panel = document.createElement("div");
+        this.panel.innerHTML = this.construct_html().trim();
+        this.panel = this.panel.firstChild;
+        document.body.appendChild(this.panel);
+        // bind function to panel button
+        this.panel_button = this.panel.querySelector(
+            ".airead-tool-panel-button"
+        );
+        this.panel_button.onclick = () => {
+            let settings_modal_id = "settings-modal";
+            let settings_modal_parent = $(`#${settings_modal_id}`);
+            if (settings_modal_parent.length <= 0) {
+                let settings_modal = new SettingsModal({
+                    id: settings_modal_id,
+                });
+                settings_modal.spawn();
+                settings_modal_parent = $(`#${settings_modal_id}`);
+            }
+            settings_modal_parent.modal("show");
+        };
+    }
+    construct_endpoint_and_api_key_item_html() {
+        let html = `
+            <div class="row mt-2 no-gutters">
+                <div class="col pl-0">
+                    <input class="form-control endpoint-input" rows="1"
+                        placeholder="Input Endpoint URL, don't add /v1"
+                    ></input>
+                </div>
+                <div class="col pl-0">
+                    <input class="form-control api-key-input" rows="1"
+                        placeholder="Input API Key, then click ✔️"
+                    ></input>
+                </div>
+                <div class="col-auto px-0">
+                    <button class="btn submit-endpoint-button">✔️</button>
+                </div>
+            </div>
+        `;
+        return html;
+    }
+    create_buttons() {
+        // this.endpoint_and_api_key_item = document.createElement("div");
+        // this.endpoint_and_api_key_item.innerHTML =
+        //     this.construct_endpoint_and_api_key_item_html().trim();
+        // this.endpoint_and_api_key_item =
+        //     this.endpoint_and_api_key_item.firstChild;
+        // this.panel.parentNode.appendChild(this.endpoint_and_api_key_item);
+    }
+}
+
+// ===================== Widgets End ===================== //
+
 (function () {
     "use strict";
     console.log("+ App loaded: AIRead (Local)");
@@ -977,6 +1337,7 @@ class ToolButtonGroup {
         window.pure_elements = selector.select();
         selector.stylize();
         apply_css();
+        let tool_panel = new ToolPanel();
         let tool_button_group = new ToolButtonGroup();
         for (let element of window.pure_elements) {
             add_container_to_element(element, tool_button_group);

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AIRead
 // @namespace    http://tampermonkey.net/
-// @version      0.2.1
+// @version      0.3
 // @description  An AI-assisted reading script in browsers.
 // @author       Hansimov
 // @match        https://*.wikipedia.org/wiki/*
@@ -9,6 +9,8 @@
 // @icon         https://raw.githubusercontent.com/Hansimov/airead/main/logo.png
 // @connect      *
 // @grant        GM_xmlhttpRequest
+// @grant        GM.getValue
+// @grant        GM.setValue
 // @require      https://github.com/Hansimov/airead/raw/main/stable/airead_module.user.js
 // ==/UserScript==
 
