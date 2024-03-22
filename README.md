@@ -1,15 +1,25 @@
 # AIRead
 An AI-assisted reading script in browsers.
 
-## Repo files description
+## For Users
 
-For most users, you should only use this file:
+For most users, click and install is all you need:
 
 - [<code>airead.stable.user.js</code>](https://github.com/Hansimov/airead/raw/main/airead.stable.user.js)
-  - stable release
-  - click and install is all you need
 
-For developers, you might care about these files:
+As this script would request cross-origin resources (fetch js modules and post request to LLM endpoint), you need to grant the permission:
+
+- Click "Always allow all domains"
+- Click "OK"
+
+![](./assets/install.png)
+
+## For Developers
+
+For developers, you might care about what these files do:
+
+- <code>airead.<b>stable</b>.user.js</code>
+  - stable release
 
 - <code>airead_module.<b>stable</b>.user.js</code>
   - module script for stable version
@@ -17,7 +27,7 @@ For developers, you might care about these files:
 
 - <code>airead.<b>dev</b>.user.js</code>
   - dev version
-  - only for developers
+  - used in development
 - <code>airead_module.<b>dev</b>.user.js</code>
-  - Module script for dev version
-  - only for developers
+  - dev version of module script
+  - used in development
