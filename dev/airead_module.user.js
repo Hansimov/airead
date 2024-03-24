@@ -689,18 +689,30 @@ class ChatUserInput {
         let html = `
             <div class="my-2 row no-gutters airead-chat-user-input-group">
                 <div class="airead-chat-user-input-options">
-                    <div class="col-auto px-0 pb-2 d-flex justify-content-start">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="paraOptions" id="onlyThisPara" value="onlyThisPara">
-                            <label class="form-check-label" for="onlyThisPara">
-                                Only this para
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="paraOptions" id="includingChildren" value="includingChildren">
-                            <label class="form-check-label" for="includingChildren">
-                                Including children
-                            </label>
+                    <div class="col-auto px-0 pb-2 d-flex align-items-left">
+                        <select class="form-control" id="paraOptions" name="paraOptions" onchange="showMoreOptions(this.value)">
+                            <option value="onlyThisPara">Only this para</option>
+                            <option value="moreParas">More paras</option>
+                        </select>
+                        <div id="moreParasOptions"">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="moreParasBefore" onchange="showBeforeOptions(this.checked)">
+                                <label for="moreParasBefore">More paras before</label>
+                                <select class="form-control" id="beforeOptions"">
+                                    <option value="includingParent">Including parent</option>
+                                    <option value="includingPrevParas">Including prev paras</option>
+                                </select>
+                                <input type="number" id="numPrevParas" name="numPrevParas" min="1">
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="moreParasAfter" onchange="showAfterOptions(this.checked)">
+                                <label for="moreParasAfter">More paras after</label>
+                                <select class="form-control" id="afterOptions"">
+                                    <option value="includingChildren">Including children</option>
+                                    <option value="includingNextParas">Including next paras</option>
+                                </select>
+                                <input type="number" id="numNextParas" name="numNextParas" min="1">
+                            </div>
                         </div>
                     </div>
                 </div>
