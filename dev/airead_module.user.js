@@ -567,9 +567,6 @@ function chat_completions({
 // ===================== AIRead Start ===================== //
 
 const AIREAD_CSS = `
-.pure-element {
-}
-
 .airead-tool-button-group {
     display: block;
     position: absolute;
@@ -592,6 +589,10 @@ const AIREAD_CSS = `
 .airead-element-hover {
     box-shadow: 0px 0px 4px gray !important;
     background-color: azure !important;
+}
+.airead-element-group-hover {
+    box-shadow: 0px 0px 4px gray !important;
+    background-color: Cornsilk !important;
 }
 @keyframes airead-element-focus {
     0% { background-color: initial; }
@@ -683,9 +684,11 @@ class ChatUserInput {
     constructor() {}
     construct_html() {
         let html = `
-            <div class="col-auto px-0">
-                <textarea class="form-control airead-chat-user-input" rows="1"
-                    placeholder="Ask about this paragraph ..."></textarea>
+            <div class="my-2 row no-gutters airead-chat-user-input-group">
+                <div class="col-auto px-0">
+                    <textarea class="form-control airead-chat-user-input" rows="1"
+                        placeholder="Ask about this paragraph ..."></textarea>
+                </div>
             </div>
         `;
         return html;
@@ -719,16 +722,8 @@ class ChatUserInput {
         }
         return "";
     }
-    spawn(parent_element) {
-        this.user_input_group = document.createElement("div");
-        this.user_input_group.innerHTML = this.construct_html();
-        parent_element.parentNode.appendChild(this.user_input_group);
-        this.user_input_group.classList.add(
-            "my-2",
-            "row",
-            "no-gutters",
-            "airead-chat-user-input-group"
-        );
+    bind_keys(parent_element) {
+        let self = this;
         let user_input = this.user_input_group.querySelector("textarea");
         user_input.addEventListener(
             "input",
@@ -738,7 +733,6 @@ class ChatUserInput {
             },
             false
         );
-        let self = this;
         user_input.addEventListener("keypress", (event) => {
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -790,7 +784,13 @@ class ChatUserInput {
                 });
             }
         });
-
+    }
+    spawn(parent_element) {
+        this.user_input_group = document.createElement("div");
+        this.user_input_group.innerHTML = this.construct_html().trim();
+        this.user_input_group = this.user_input_group.firstChild;
+        parent_element.parentNode.appendChild(this.user_input_group);
+        this.bind_keys(parent_element);
         return this.user_input_group;
     }
 }
@@ -894,8 +894,8 @@ class ToolButtonGroup {
         this.button_group.id = "airead-tool-button-group";
         this.button_group.classList.add("airead-tool-button-group");
         this.chat_button = this.create_button("Chat", () => {});
-        this.copy_button = this.create_button("Print", () => {});
-        this.parent_button = this.create_button("Parent", () => {});
+        // this.copy_button = this.create_button("Print", () => {});
+        // this.parent_button = this.create_button("Parent", () => {});
 
         document.body.prepend(this.button_group);
 
@@ -929,9 +929,6 @@ class ToolButtonGroup {
         window.addEventListener("resize", update_button_group_position);
     }
     bind_buttons_func_to_element(element) {
-        this.copy_button.onclick = () => {
-            console.log("Print:", get_element_text(element));
-        };
         // find in children of element.parentNode,
         // if any chat_user_input_group and display not "none", set chat_button text to "Hide"
         // else set to "Chat"
@@ -985,17 +982,20 @@ class ToolButtonGroup {
             } else {
             }
         };
-        this.parent_button.onclick = () => {
-            let pure_parent = get_pure_parent(element);
-            // focus on the parent
-            pure_parent.focus();
-            pure_parent.scrollIntoView({ behavior: "smooth", block: "start" });
-            pure_parent.classList.add("airead-element-focus");
-            setTimeout(() => {
-                pure_parent.classList.remove("airead-element-focus");
-            }, 1500);
-            console.log("Goto Parent:", pure_parent, "of:", element);
-        };
+        // this.copy_button.onclick = () => {
+        //     console.log("Print:", get_element_text(element));
+        // };
+        // this.parent_button.onclick = () => {
+        //     let pure_parent = get_pure_parent(element);
+        //     // focus on the parent
+        //     pure_parent.focus();
+        //     pure_parent.scrollIntoView({ behavior: "smooth", block: "start" });
+        //     pure_parent.classList.add("airead-element-focus");
+        //     setTimeout(() => {
+        //         pure_parent.classList.remove("airead-element-focus");
+        //     }, 1500);
+        //     console.log("Goto Parent:", pure_parent, "of:", element);
+        // };
     }
     attach_to_element(element = null) {
         if (element) {
