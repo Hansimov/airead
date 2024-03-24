@@ -604,13 +604,16 @@ const AIREAD_CSS = `
 }
 
 .airead-chat-user-input-group {
+}
+
+.airead-chat-user-input {
+    resize: none;
+    border-radius: 5px;
     box-shadow: 0px 0px 4px gray;
-    border-radius: 10px;
     max-height: 300px;
     overflow-y: auto;
 }
-.airead-chat-user-input {
-    resize: none;
+.airead-chat-user-input-options {
 }
 .airead-chat-message-user {
     background-color: rgba(128, 255, 128, 0.1);
@@ -685,6 +688,22 @@ class ChatUserInput {
     construct_html() {
         let html = `
             <div class="my-2 row no-gutters airead-chat-user-input-group">
+                <div class="airead-chat-user-input-options">
+                    <div class="col-auto px-0 pb-2 d-flex justify-content-start">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="paraOptions" id="onlyThisPara" value="onlyThisPara">
+                            <label class="form-check-label" for="onlyThisPara">
+                                Only this para
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="paraOptions" id="includingChildren" value="includingChildren">
+                            <label class="form-check-label" for="includingChildren">
+                                Including children
+                            </label>
+                        </div>
+                    </div>
+                </div>
                 <div class="col-auto px-0">
                     <textarea class="form-control airead-chat-user-input" rows="1"
                         placeholder="Ask about this paragraph ..."></textarea>
