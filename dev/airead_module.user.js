@@ -94,6 +94,7 @@ const ATOM_TAGS = [].concat(
 );
 const PARA_TAGS = [].concat(
     GROUP_TAGS,
+    // SPAN_TAGS,
     LIST_TAGS,
     DEF_TAGS,
     P_TAGS,
@@ -131,9 +132,9 @@ const REMOVED_CLASSES = [].concat(
 // Excluded Elements classes and ids
 
 const COMMON_EXCLUDED_CLASSES = [
-    "(?<!has)sidebar",
+    "(?<!has-?)sidebar",
     "related",
-    "comment",
+    // "comment",
     "topbar",
     "offcanvas",
     "navbar",
@@ -153,13 +154,17 @@ const WIKIPEDIA_EXCLUDED_CLASSES = [
 ];
 const ARXIV_EXCLUDED_CLASSES = ["(ltx_)((flex_break)|(pagination))"];
 const DOCS_PYTHON_EXCLUDED_CLASSES = ["clearer"];
+const AMINER_EXCLUDED_CLASSES = ["dropcontent", "LayoutsHeaderPlaceholder"];
+const WEIBO_EXCLUDED_CLASSES = ["nav_main", "index_box"];
 
 const EXCLUDED_CLASSES = [].concat(
     REMOVED_CLASSES,
     COMMON_EXCLUDED_CLASSES,
     WIKIPEDIA_EXCLUDED_CLASSES,
     ARXIV_EXCLUDED_CLASSES,
-    DOCS_PYTHON_EXCLUDED_CLASSES
+    DOCS_PYTHON_EXCLUDED_CLASSES,
+    AMINER_EXCLUDED_CLASSES,
+    WEIBO_EXCLUDED_CLASSES
 );
 
 // Helper Functions
