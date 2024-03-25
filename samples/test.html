@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+
+<body>
+    <div class="pure">
+        <h1>BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding</h1>
+        <p>Jacob Devlin Ming-Wei Chang Kenton Lee Kristina Toutanova
+            Google AI Language {jacobdevlin,mingweichang,kentonl,kristout}@google.com
+        </p>
+        <h6>Abstract</h6>
+        <p>
+            We introduce a new language representation model called BERT, which stands for Bidirectional Encoder
+            Representations from Transformers. Unlike recent language representation models, BERT is designed to
+            pre-train deep bidirectional
+            representations from unlabeled text by jointly conditioning on both left and right context in all layers.
+        </p>
+        <p>As
+            a result, the pre-trained BERT model can be fine-tuned with just one additional output layer to create
+            state-of-the-art models for a wide range of tasks, such as question answering and language inference,
+            without substantial task-specific architecture modifications.
+            BERT is conceptually simple and empirically powerful. It obtains new state-of-the-art results on eleven
+            natural language processing tasks, including pushing the GLUE score to 80.5% (7.7% point absolute
+            improvement), MultiNLI accuracy to 86.7% (4.6% absolute improvement), SQuAD v1.1 question answering Test F1
+            to 93.2 (1.5 point absolute improvement) and SQuAD v2.0 Test F1 to 83.1 (5.1 point absolute improvement).
+        </p>
+        <h1>Introduction</h1>
+        <p>
+            In this paper, we improve the fine-tuning based approaches by proposing BERT: Bidirectional Encoder
+            Representations from Transformers. BERT alleviates the previously mentioned unidirectionality constraint by
+            using a "masked language model" (MLM) pre-training objective, inspired by the Cloze task Taylor (1953). The
+            masked language model randomly masks some of the tokens from the input, and the objective is to predict the
+            original vocabulary id of the masked word based only on its context.
+        </p>
+        <p>Unlike left-to-right language model
+            pre-training, the MLM objective enables the representation to fuse the left and the right context, which
+            allows us to pre-train a deep bidirectional Transformer. In addition to the masked language model, we also
+            use a "next sentence prediction" task that jointly pre-trains text-pair representations. The contributions
+            of our paper are as follows:
+        </p>
+        <ol>
+            <li>We demonstrate the importance of bidirectional pre-training for language representations. Unlike Radford
+                et&nbsp;al. (2018), which uses unidirectional language models for pre-training, BERT uses masked
+                language
+                models to enable pre-trained deep bidirectional representations. This is also in contrast to Peters
+                et&nbsp;al. (2018a), which uses a shallow concatenation of independently trained left-to-right and
+                right-to-left LMs.</li>
+            <li>We show that pre-trained representations reduce the need for many heavily-engineered task-specific
+                architectures. BERT is the first fine-tuning based representation model that achieves state-of-the-art
+                performance on a large suite of sentence-level and token-level tasks, outperforming many task-specific
+                architectures.</li>
+            <li>BERT advances the state of the art for eleven NLP tasks. The code and pre-trained models are available
+                at https://github.com/google-research/bert.</li>
+        </ol>
+
+        <h2>2 Related Work</h2>
+        <p>There is a long history of pre-training general language representations, and we briefly review the most
+            widely-used approaches in this section.</p>
+
+        <h3>2.1 Unsupervised Feature-based Approaches</h3>
+        <p>Learning widely applicable representations of words has been an active area of research for decades,
+            including non-neural Brown et al. (1992); Ando and Zhang (2005); Blitzer et al. (2006) and neural Mikolov et
+            al. (2013); Pennington et al. (2014) methods. Pre-trained word embeddings are an integral part of modern NLP
+            systems, offering significant improvements over embeddings learned from scratch Turian et al. (2010). To
+            pre-train word embedding vectors, left-to-right language modeling objectives have been used Mnih and Hinton
+            (2009), as well as objectives to discriminate correct from incorrect words in left and right context Mikolov
+            et al. (2013).</p>
+
+        <p>These approaches have been generalized to coarser granularities, such as sentence embeddings Kiros et al.
+            (2015); Logeswaran and Lee (2018) or paragraph embeddings Le and Mikolov (2014). To train sentence
+            representations, prior work has used objectives to rank candidate next sentences Jernite et al. (2017);
+            Logeswaran and Lee (2018), left-to-right generation of next sentence words given a representation of the
+            previous sentence Kiros et al. (2015), or denoising auto-encoder derived objectives Hill et al. (2016).</p>
+
+    </div>
+</body>
+<style>
+    .pure {
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        color: #333;
+        margin: 20px 150px auto 150px;
+    }
+</style>
