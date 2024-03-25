@@ -714,6 +714,52 @@ function get_pure_parent(element) {
     return parent;
 }
 
+function remove_siblings(element) {
+    let sibling = element.nextSibling;
+    while (sibling) {
+        let next_sibling = sibling.nextSibling;
+        sibling.remove();
+        sibling = next_sibling;
+    }
+}
+
+function get_element_level(element, element_list) {
+    // find first header element before element
+    let element_index = element_list.indexOf(element);
+    let parent_level = 0;
+    for (let i = element_index - 1; i >= 0; i--) {
+        let prev_element = element_list[i];
+        if (prev_element.tagName.match(/H[1-6]/)) {
+            parent_level = parseInt(prev_element.tagName.slice(1)) + 1;
+            break;
+        }
+    }
+}
+
+function get_parents_by_level(element, element_list, level = 0) {
+    // level -1: return none
+    // level  0: return prev siblings with same level
+    // level  1: return prev elements until parent
+    // level  2: return prev elements until parent.parent
+    let tag = element.tagName;
+    let parents = [];
+    let element_index = element_list.indexOf(element);
+    if (level === -1) {
+        return parents;
+    } else if (level === 0) {
+        for (let i = element_index - 1; i >= 0; i--) {
+            let prev_element = element_list[i];
+            if (level_diff(element, prev_element) <= 0) {
+                parents.push(prev_element);
+            } else {
+                break;
+            }
+        }
+    }
+
+    return parents;
+}
+
 class ChatUserInput {
     constructor() {}
     construct_html() {
@@ -766,7 +812,6 @@ class ChatUserInput {
         return "";
     }
     bind_options() {
-        let self = this;
         function add_option_html(para_options_select) {
             let more_para_select_option_html = `&nbsp;:&nbsp;
             <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by previous count or parent level">
@@ -785,13 +830,7 @@ class ChatUserInput {
                     more_para_select_option_html
                 );
             } else {
-                // remove all other string and elements, and only keeps para_options_select
-                let sibling = para_options_select.nextSibling;
-                while (sibling) {
-                    let next_sibling = sibling.nextSibling;
-                    sibling.remove();
-                    sibling = next_sibling;
-                }
+                remove_siblings(para_options_select);
             }
         }
         let para_options_select = this.user_input_group.querySelector("select");
