@@ -620,10 +620,32 @@ const AIREAD_CSS = `
 }
 .airead-chat-user-input-options {
 }
-.airead-chat-user-input-options-select {
-    padding: 0;
+.airead-chat-user-input-option-select-para,
+.airead-chat-user-input-option-select-level {
+    padding: 0px 2px 0px 2px;
     margin: 0;
+    border-radius: 2px;
+    box-shadow: 0px 0px 3px gray;
+}
+.airead-chat-user-input-option-select-para {
+    width: 100px;
+}
+.airead-chat-user-input-option-select-level {
     width: auto;
+    box-shadow: none;
+}
+.airead-chat-user-input-option-input-short,
+.airead-chat-user-input-option-input {
+    padding: 0px 0px 0px 0px;
+    margin: 0px 4px 0px 4px;
+    border-radius: 12px;
+    text-align: right;
+}
+.airead-chat-user-input-option-input {
+    max-width: 40px;
+}
+.airead-chat-user-input-option-input-short {
+    max-width: 30px;
 }
 .airead-chat-message-user {
     background-color: rgba(128, 255, 128, 0.1);
@@ -699,11 +721,21 @@ class ChatUserInput {
             <div class="my-2 row no-gutters airead-chat-user-input-group">
                 <div class="airead-chat-user-input-options">
                     <div class="col px-0 pb-2 d-flex align-items-left">
-                        <select class="form-control airead-chat-user-input-options-select" id="para_options" name="para_options">
-                            <option value="only_this_para">Only this para</option>
-                            <option value="more_paras_auto">More paras (auto)</option>
-                            <option value="more_paras_manual">More paras (manual)</option>
+                        <select class="form-control airead-chat-user-input-option-select-para" title="Select more paragraphs as context">
+                            <option value="only_this_para">only this para</option>
+                            <option value="more_paras_auto">(auto) more paras</option>
+                            <option value="more_paras_manual">(manual) more paras</option>
+                        </select> &nbsp;:&nbsp;
+                        <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by previous count or parent level">
+                            <option value="parent_level">parent level</option>
+                            <option value="prev_num">prev count</option>
                         </select>
+                        <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">
+                        <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by next count or child level">
+                        <option value="children_level">child level</option>
+                        <option value="next_num">next count</option>
+                        </select>
+                        <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">; 
                     </div>
                 </div>
                 <div class="col-auto px-0">
@@ -743,7 +775,17 @@ class ChatUserInput {
         }
         return "";
     }
-    bind_keys(parent_element) {
+    bind_options() {
+        let self = this;
+        let para_options_select = this.user_input_group.querySelector("select");
+        let more_paras_manual_html = `
+            
+        `;
+        para_options_select.addEventListener("change", function () {
+            console.log("Option select:", this.value);
+        });
+    }
+    bind_user_input(parent_element) {
         let self = this;
         let user_input = this.user_input_group.querySelector("textarea");
         user_input.addEventListener(
@@ -811,7 +853,8 @@ class ChatUserInput {
         this.user_input_group.innerHTML = this.construct_html().trim();
         this.user_input_group = this.user_input_group.firstChild;
         parent_element.parentNode.appendChild(this.user_input_group);
-        this.bind_keys(parent_element);
+        this.bind_user_input(parent_element);
+        this.bind_options();
         return this.user_input_group;
     }
 }
@@ -1363,9 +1406,5 @@ class ToolPanel {
         for (let element of window.pure_elements) {
             add_container_to_element(element, tool_button_group);
         }
-        let test_element = pure_elements[22];
-        console.log(test_element);
-        let converter = new ElementContentConverter(test_element);
-        converter.get_text();
     });
 })();
