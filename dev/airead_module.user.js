@@ -723,19 +723,9 @@ class ChatUserInput {
                     <div class="col px-0 pb-2 d-flex align-items-left">
                         <select class="form-control airead-chat-user-input-option-select-para" title="Select more paragraphs as context">
                             <option value="only_this_para">only this para</option>
-                            <option value="more_paras_auto">(auto) more paras</option>
+                            <option value="more_paras_auto" selected="selected">(auto) more paras</option>
                             <option value="more_paras_manual">(manual) more paras</option>
-                        </select> &nbsp;:&nbsp;
-                        <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by previous count or parent level">
-                            <option value="parent_level">parent level</option>
-                            <option value="prev_num">prev count</option>
                         </select>
-                        <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">
-                        <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by next count or child level">
-                        <option value="children_level">child level</option>
-                        <option value="next_num">next count</option>
-                        </select>
-                        <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">; 
                     </div>
                 </div>
                 <div class="col-auto px-0">
@@ -777,12 +767,37 @@ class ChatUserInput {
     }
     bind_options() {
         let self = this;
+        function add_option_html(para_options_select) {
+            let more_para_select_option_html = `&nbsp;:&nbsp;
+            <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by previous count or parent level">
+                <option value="parent_level">parent level</option>
+                <option value="prev_num">prev count</option>
+            </select>
+            <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">
+            <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by next count or child level">
+            <option value="children_level">child level</option>
+            <option value="next_num">next count</option>
+            </select>
+            <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">;`;
+            if (para_options_select.value === "more_paras_manual") {
+                para_options_select.insertAdjacentHTML(
+                    "afterend",
+                    more_para_select_option_html
+                );
+            } else {
+                // remove all other string and elements, and only keeps para_options_select
+                let sibling = para_options_select.nextSibling;
+                while (sibling) {
+                    let next_sibling = sibling.nextSibling;
+                    sibling.remove();
+                    sibling = next_sibling;
+                }
+            }
+        }
         let para_options_select = this.user_input_group.querySelector("select");
-        let more_paras_manual_html = `
-            
-        `;
         para_options_select.addEventListener("change", function () {
             console.log("Option select:", this.value);
+            add_option_html(this);
         });
     }
     bind_user_input(parent_element) {
