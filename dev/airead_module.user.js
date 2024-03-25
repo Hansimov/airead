@@ -115,7 +115,7 @@ const CUSTOM_CSS = `
 
 // Removed Elements classes and ids
 
-const COMMON_REMOVED_CLASSES = ["footer"];
+const COMMON_REMOVED_CLASSES = ["(?<!flex-wrap-)footer"];
 const WIKIPEDIA_REMOVED_CLASSES = [
     "mw-editsection",
     "(vector-)((user-links)|(menu-content)|(body-before-content)|(page-toolbar))",
@@ -140,6 +140,7 @@ const COMMON_EXCLUDED_CLASSES = [
     "navbar",
     "sf-hidden",
     "noprint",
+    "is-hidden-mobile",
 ];
 const WIKIPEDIA_EXCLUDED_CLASSES = [
     "(mw-)((jump-link)|(valign-text-top))",
@@ -152,7 +153,10 @@ const WIKIPEDIA_EXCLUDED_CLASSES = [
     "contentSub",
     "siteNotice",
 ];
-const ARXIV_EXCLUDED_CLASSES = ["(ltx_)((flex_break)|(pagination))"];
+const ARXIV_EXCLUDED_CLASSES = [
+    "(ltx_)((flex_break)|(pagination))",
+    "extra-services",
+];
 const DOCS_PYTHON_EXCLUDED_CLASSES = ["clearer"];
 const AMINER_EXCLUDED_CLASSES = ["dropcontent", "LayoutsHeaderPlaceholder"];
 const WEIBO_EXCLUDED_CLASSES = ["nav_main", "index_box"];
@@ -587,6 +591,7 @@ const AIREAD_CSS = `
 }
 
 .airead-element-hover {
+    border-radius: 4px;
     box-shadow: 0px 0px 4px gray !important;
     background-color: azure !important;
 }
@@ -608,18 +613,22 @@ const AIREAD_CSS = `
 
 .airead-chat-user-input {
     resize: none;
-    border-radius: 5px;
+    border-radius: 4px;
     box-shadow: 0px 0px 4px gray;
     max-height: 300px;
     overflow-y: auto;
 }
 .airead-chat-user-input-options {
 }
+.airead-chat-user-input-options-select {
+    padding: 0;
+    margin: 0;
+    width: auto;
+}
 .airead-chat-message-user {
     background-color: rgba(128, 255, 128, 0.1);
     text-align: left;
 }
-
 .airead-chat-message-assistant {
     background-color: rgba(180, 180, 255, 0.1);
     text-align: left;
@@ -689,31 +698,12 @@ class ChatUserInput {
         let html = `
             <div class="my-2 row no-gutters airead-chat-user-input-group">
                 <div class="airead-chat-user-input-options">
-                    <div class="col-auto px-0 pb-2 d-flex align-items-left">
-                        <select class="form-control" id="paraOptions" name="paraOptions" onchange="showMoreOptions(this.value)">
-                            <option value="onlyThisPara">Only this para</option>
-                            <option value="moreParas">More paras</option>
+                    <div class="col px-0 pb-2 d-flex align-items-left">
+                        <select class="form-control airead-chat-user-input-options-select" id="para_options" name="para_options">
+                            <option value="only_this_para">Only this para</option>
+                            <option value="more_paras_auto">More paras (auto)</option>
+                            <option value="more_paras_manual">More paras (manual)</option>
                         </select>
-                        <div id="moreParasOptions"">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="moreParasBefore" onchange="showBeforeOptions(this.checked)">
-                                <label for="moreParasBefore">More paras before</label>
-                                <select class="form-control" id="beforeOptions"">
-                                    <option value="includingParent">Including parent</option>
-                                    <option value="includingPrevParas">Including prev paras</option>
-                                </select>
-                                <input type="number" id="numPrevParas" name="numPrevParas" min="1">
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="moreParasAfter" onchange="showAfterOptions(this.checked)">
-                                <label for="moreParasAfter">More paras after</label>
-                                <select class="form-control" id="afterOptions"">
-                                    <option value="includingChildren">Including children</option>
-                                    <option value="includingNextParas">Including next paras</option>
-                                </select>
-                                <input type="number" id="numNextParas" name="numNextParas" min="1">
-                            </div>
-                        </div>
                     </div>
                 </div>
                 <div class="col-auto px-0">
