@@ -723,40 +723,91 @@ function remove_siblings(element) {
     }
 }
 
-function get_element_level(element, element_list) {
-    // find first header element before element
-    let element_index = element_list.indexOf(element);
-    let parent_level = 0;
-    for (let i = element_index - 1; i >= 0; i--) {
-        let prev_element = element_list[i];
-        if (prev_element.tagName.match(/H[1-6]/)) {
-            parent_level = parseInt(prev_element.tagName.slice(1)) + 1;
-            break;
+function is_header(element) {
+    return element.tagName.match(/H[1-6]/i);
+}
+function get_header_level(element) {
+    return parseInt(element.tagName.slice(1));
+}
+function compare_element_level(element1, element2) {
+    // Less level means closer to root.
+    // -1: level of element1 < element2
+    // +1: level of element1 < element2
+    //  0: level of element1 = element2
+    let para_tags = ["p", "table", "pre", "img", "blockquote", "math", "code"];
+    let item_tags = ["li", "dd", "dt"];
+    let tag_ranks = [...HEADER_TAGS, para_tags, item_tags];
+    let rank1 = tag_ranks.findIndex((tags) =>
+        tags.includes(element1.tagName.toLowerCase())
+    );
+    let rank2 = tag_ranks.findIndex((tags) =>
+        tags.includes(element2.tagName.toLowerCase())
+    );
+    // if index is -1, set to HEADER_TAGS.length, which means
+    rank1 = rank1 === -1 ? HEADER_TAGS.length : rank1;
+    rank2 = rank2 === -1 ? HEADER_TAGS.length : rank2;
+    return rank1 - rank2;
+}
+function set_pure_element_levels() {
+    let level;
+    let prev_level;
+    let prev_element = null;
+    for (let element of window.pure_elements) {
+        if (!prev_element) {
+            if (is_header(element)) {
+                level = get_header_level(element) - 1;
+            } else {
+                level = 1;
+            }
+        } else {
+            if (is_header(element)) {
+                level = get_header_level(element) - 1;
+                if (level < prev_level) {
+                    level = Math.min(prev_level + 1, level);
+                }
+            } else {
+                let level_diff = compare_element_level(element, prev_element);
+                level = level + level_diff;
+            }
         }
+        element.setAttribute("airead-level", level);
+        console.log("Level of", element, level);
+        prev_level = level;
+        prev_element = element;
     }
 }
-
-function get_parents_by_level(element, element_list, level = 0) {
-    // level -1: return none
-    // level  0: return prev siblings with same level
-    // level  1: return prev elements until parent
-    // level  2: return prev elements until parent.parent
-    let tag = element.tagName;
+function get_parents_by_level_diff(element, element_list, abs_level_diff = 0) {
+    // abs_level_diff = -1: return []
+    // abs_level_diff =  0: return siblings with same level
+    // abs_level_diff >  0: return elements with diff of levels < abs_level_diff
     let parents = [];
     let element_index = element_list.indexOf(element);
-    if (level === -1) {
-        return parents;
-    } else if (level === 0) {
+    if (abs_level_diff >= 0) {
         for (let i = element_index - 1; i >= 0; i--) {
-            let prev_element = element_list[i];
-            if (level_diff(element, prev_element) <= 0) {
-                parents.push(prev_element);
+            let sibling = element_list[i];
+            let sibling_level = sibling.getAttribute("airead-level");
+            let element_level = element.getAttribute("airead-level");
+            // example:
+            // if element_level is 6, and abs_level_diff is 1
+            // then sibling_level should be 5 or 6
+            // and since this function is to get parents,
+            // sibling_level must <= element_level
+            if (
+                element_level >= sibling_level &&
+                element_level - sibling_level <= abs_level_diff
+            ) {
+                parents.push(sibling);
             } else {
                 break;
             }
         }
     }
-
+    console.log(
+        "Element",
+        element,
+        `parents under level ${abs_level_diff}`,
+        parents
+    );
     return parents;
 }
 
@@ -1460,5 +1511,11 @@ class ToolPanel {
         for (let element of window.pure_elements) {
             add_container_to_element(element, tool_button_group);
         }
+        set_pure_element_levels();
+        get_parents_by_level_diff(
+            window.pure_elements[10],
+            window.pure_elements,
+            0
+        );
     });
 })();
