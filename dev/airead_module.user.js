@@ -832,9 +832,10 @@ function get_parents_by_level_diff({
             // Thus we must compare the "relative" level diff,
             //   which is aliased as "level_dist" here.
             let level = sibling.getAttribute("airead-level");
+            let level_dist = 0;
             // if the level is in map keys, then return the value in level_dist_map,
             if (level_dist_map[level] !== undefined) {
-                return level_dist_map[level];
+                level_dist = level_dist_map[level];
             } else {
                 // if level less than the min level in the map,
                 // then add a new key `level`, and its dist is the max_dist + 1
@@ -842,10 +843,10 @@ function get_parents_by_level_diff({
                 let max_dist = Math.max(...Object.values(level_dist_map));
                 if (level < min_level) {
                     level_dist_map[level] = max_dist + 1;
-                    return level_dist_map[level];
+                    level_dist = level_dist_map[level];
                 }
             }
-            return 0;
+            return level_dist;
         }
 
         for (let i = element_index - 1; i >= 0; i--) {
@@ -1098,7 +1099,7 @@ class AssistantChatMessageElement {
 window.hovering_element = null;
 window.hovering_chat_user_input_group = null;
 function add_container_to_element(element, tool_button_group) {
-    let container = document.createElement("span");
+    let container = document.createElement("airead-container");
     element.parentNode.replaceChild(container, element);
     container.appendChild(element);
     container.addEventListener("mouseenter", (event) => {
