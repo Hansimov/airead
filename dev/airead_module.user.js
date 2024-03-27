@@ -867,7 +867,6 @@ function get_parents_by_level_diff({
                 get_rel_level(sibling) <= rel_level_diff
             ) {
                 parents.push(sibling);
-                min_level_sibling_index = i;
                 // for items (li, dt, dd),
                 //   it might be better to stop at first non-li element
                 // and if element_level <= sibling_level + rel_level_diff - 1
@@ -886,13 +885,67 @@ function get_parents_by_level_diff({
             }
         }
     }
-    console.log(
-        "Element",
-        element,
-        `parents under level ${rel_level_diff}`,
-        parents
-    );
     return parents;
+}
+
+function get_children_by_level_diff({
+    element,
+    element_list,
+    rel_level_diff = 0,
+} = {}) {
+    // same to get_parents_by_level_diff, but in reverse order
+    let children = [];
+    let element_index = element_list.indexOf(element);
+    let tag = get_tag(element);
+    let item_tags = ["li", "dd", "dt"];
+    if (rel_level_diff >= 0) {
+        let element_level = element.getAttribute("airead-level");
+        let level_dist_map = {
+            [element_level]: 0,
+        };
+        function get_rel_level(sibling) {
+            let level = sibling.getAttribute("airead-level");
+            let level_dist = 0;
+            if (level_dist_map[level] !== undefined) {
+                level_dist = level_dist_map[level];
+            } else {
+                let max_level = Math.min(...Object.keys(level_dist_map));
+                let max_dist = Math.max(...Object.values(level_dist_map));
+                if (level > max_level) {
+                    level_dist_map[level] = max_dist + 1;
+                    level_dist = level_dist_map[level];
+                }
+            }
+            return level_dist;
+        }
+
+        for (let i = element_index + 1; i >= 0; i++) {
+            let sibling = element_list[i];
+            let sibling_level = sibling.getAttribute("airead-level");
+            // Example:
+            //   if element_level is 6, and rel_level_diff is 1,
+            //   then sibling_level should be 6 or 7.
+            // Since this function is to get children,
+            //   element_level must <= sibling_level by default
+            if (
+                element_level <= sibling_level &&
+                get_rel_level(sibling) <= rel_level_diff
+            ) {
+                children.push(sibling);
+            } else if (element_level > sibling_level) {
+                break;
+            } else {
+                continue;
+            }
+        }
+    }
+    console.log(
+        "Element:",
+        element,
+        `level ${rel_level_diff} children:`,
+        children
+    );
+    return children;
 }
 
 class ChatUserInput {
@@ -1596,12 +1649,17 @@ class ToolPanel {
             add_container_to_element(element, tool_button_group);
         }
         set_pure_element_levels();
-        get_parents_by_level_diff({
-            element: window.pure_elements[11],
+        // get_parents_by_level_diff({
+        //     element: window.pure_elements[11],
+        //     element_list: window.pure_elements,
+        //     rel_level_diff: 0,
+        //     include_parent_children: true,
+        //     stop_at_first_non_li_for_li: true,
+        // });
+        get_children_by_level_diff({
+            element: window.pure_elements[7],
             element_list: window.pure_elements,
-            rel_level_diff: 0,
-            include_parent_children: true,
-            stop_at_first_non_li_for_li: true,
+            rel_level_diff: 1,
         });
     });
 })();
