@@ -296,14 +296,25 @@ class PureElementsSelector {
         let output_elements = [];
         for (let i = 0; i < elements.length; i++) {
             if (
-                !NON_TEXT_TAGS.includes(get_tag(elements[i])) &&
-                elements[i].textContent
+                elements[i].textContent ||
+                NON_TEXT_TAGS.includes(get_tag(elements[i]))
             ) {
                 output_elements.push(elements[i]);
             }
         }
         return output_elements;
     }
+    filter_overlapped_elements(elements) {
+        let output_elements = [...elements];
+        for (let element of elements) {
+            let parents = get_parents(element);
+            output_elements = output_elements.filter(
+                (element) => !parents.includes(element)
+            );
+        }
+        return output_elements;
+    }
+
     numbering_elements(elements) {
         console.log("Pure elements count:", elements.length);
         for (let i = 0; i < elements.length; i++) {
@@ -331,6 +342,7 @@ class PureElementsSelector {
         pure_elements = this.filter_excluded_elements(pure_elements);
         pure_elements = this.filter_atom_elements(pure_elements);
         pure_elements = this.filter_no_text_elements(pure_elements);
+        pure_elements = this.filter_overlapped_elements(pure_elements);
         pure_elements = this.numbering_elements(pure_elements);
         this.pure_elements = pure_elements;
         return this.pure_elements;
