@@ -907,50 +907,60 @@ function get_children_by_level_diff({
     element,
     element_list,
     rel_level_diff = 0,
+    include_same_level = false,
 } = {}) {
     // same to get_parents_by_level_diff, but in reverse order
     let children = [];
     let element_index = element_list.indexOf(element);
     let tag = get_tag(element);
-    let item_tags = ["li", "dd", "dt"];
     if (rel_level_diff >= 0) {
         let element_level = element.getAttribute("airead-level");
-        let level_dist_map = {
-            [element_level]: 0,
-        };
-        function get_rel_level(sibling) {
-            let level = sibling.getAttribute("airead-level");
-            let level_dist = 0;
-            if (level_dist_map[level] !== undefined) {
-                level_dist = level_dist_map[level];
+
+        function get_element_header_level() {
+            if (is_header(element)) {
+                return get_header_level(element);
             } else {
-                let max_level = Math.min(...Object.keys(level_dist_map));
-                let max_dist = Math.max(...Object.values(level_dist_map));
-                if (level > max_level) {
-                    level_dist_map[level] = max_dist + 1;
-                    level_dist = level_dist_map[level];
+                for (let i = element_index - 1; i >= 0; i--) {
+                    let sibling = element_list[i];
+                    if (is_header(sibling)) {
+                        return get_header_level(sibling);
+                    }
                 }
             }
-            return level_dist;
+            return -1;
         }
 
+        let current_rel_level = 0;
+        let prev_rel_level = 0;
         for (let i = element_index + 1; i < element_list.length; i++) {
             let sibling = element_list[i];
             let sibling_level = sibling.getAttribute("airead-level");
-            // Example:
-            //   if element_level is 6, and rel_level_diff is 1,
-            //   then sibling_level should be 6 or 7.
+
             // Since this function is to get children,
             //   element_level must <= sibling_level by default
-            if (
-                element_level <= sibling_level &&
-                get_rel_level(sibling) <= rel_level_diff
-            ) {
-                children.push(sibling);
-            } else if (element_level > sibling_level) {
-                break;
+            if (is_header(sibling)) {
+                if (is_header(element)) {
+                    let header_level_diff =
+                        get_element_header_level(sibling) -
+                        get_element_header_level(element);
+                    if (header_level_diff <= rel_level_diff) {
+                        children.push(sibling);
+                    } else {
+                        break;
+                    }
+                    current_rel_level = header_level_diff;
+                } else {
+                    current_rel_level = prev_rel_level + 1;
+                }
+                prev_rel_level = current_rel_level;
             } else {
-                continue;
+                if (
+                    element_level > sibling_level ||
+                    (!include_same_level && element_level === sibling_level)
+                ) {
+                    break;
+                }
+                // TODO
             }
         }
     }
@@ -1672,7 +1682,7 @@ class ToolPanel {
         //     stop_at_first_non_li_for_li: true,
         // });
         get_children_by_level_diff({
-            element: window.pure_elements[0],
+            element: window.pure_elements[13],
             element_list: window.pure_elements,
             rel_level_diff: 1,
         });
