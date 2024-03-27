@@ -842,6 +842,29 @@ function set_pure_element_rel_levels() {
         element = window.pure_elements[i];
         if (is_header(element)) {
             level = get_header_level(element) - 1;
+
+            // Following codes are handling the case
+            //   that the diff of adjacent increasing headers is greater than 1
+            // for example, in ar5iv.org,
+            //   tag of `Abstract` is `h6`, but it is directly after title (`h1`) (level=0)
+            //   so the "correct" rel level of `Abstract` should be 1.5
+            // The additional 0.5 is to distinguish `Abstract` from normal `h2` headers\
+            //   (such as `Introduction` or `Background`)
+            let prev_header_element = null;
+            for (let j = i - 1; j >= 0; j--) {
+                prev_header_element = window.pure_elements[j];
+                if (is_header(prev_header_element)) {
+                    break;
+                }
+            }
+            if (prev_header_element) {
+                let pre_header_rel_level = parseFloat(
+                    prev_header_element.getAttribute("airead-level-rel")
+                );
+                if (level - pre_header_rel_level > 1) {
+                    level = pre_header_rel_level + 1.5;
+                }
+            }
         } else {
             if (i === 0) {
                 level = 1;
