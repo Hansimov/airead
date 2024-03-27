@@ -808,37 +808,53 @@ function set_pure_element_levels() {
         prev_element = element;
     }
 }
-function get_parents_by_level_diff(
+function get_parents_by_level_diff({
     element,
     element_list,
     abs_level_diff = 0,
-    include_parent_children = true
-) {
+    include_parent_children = true,
+    stop_at_first_non_li_for_li = true,
+} = {}) {
     // abs_level_diff = -1: return []
     // abs_level_diff =  0: return siblings with same level
     // abs_level_diff >  0: return elements with diff of levels < abs_level_diff
     let parents = [];
     let element_index = element_list.indexOf(element);
+    let tag = get_tag(element);
+    let item_tags = ["li", "dd", "dt"];
     if (abs_level_diff >= 0) {
         for (let i = element_index - 1; i >= 0; i--) {
             let sibling = element_list[i];
             let sibling_level = sibling.getAttribute("airead-level");
             let element_level = element.getAttribute("airead-level");
-            // example:
-            // if element_level is 6, and abs_level_diff is 1
-            // then sibling_level should be 5 or 6
-
-            // and since this function is to get parents,
-            // sibling_level must <= element_level by default,
-            // but if include_parent_children is true, then sibling_level can be < element_level
+            // Example:
+            //   if element_level is 6, and abs_level_diff is 1,
+            //   then sibling_level should be 5 or 6.
+            // Since this function is to get parents,
+            //   element_level must >= sibling_level by default,
+            //   but if include_parent_children is true,
+            //   then element_level can be < sibling_level
             let is_include_parent_children =
-                (!include_parent_children && element_level >= sibling_level) ||
-                include_parent_children;
+                include_parent_children ||
+                (!include_parent_children && element_level >= sibling_level);
             if (
                 is_include_parent_children &&
                 element_level - sibling_level <= abs_level_diff
             ) {
                 parents.push(sibling);
+                // for items (li, dt, dd),
+                //   it might be better to stop at first non-li element
+                // and if element_level <= sibling_level + abs_level_diff - 1
+                //   the do not stop at this element,
+                //   as the +1 means fetch more.
+                if (
+                    stop_at_first_non_li_for_li &&
+                    item_tags.includes(tag) &&
+                    !item_tags.includes(get_tag(sibling)) &&
+                    !(element_level - sibling_level <= abs_level_diff - 1)
+                ) {
+                    break;
+                }
             } else {
                 break;
             }
@@ -1554,10 +1570,12 @@ class ToolPanel {
             add_container_to_element(element, tool_button_group);
         }
         set_pure_element_levels();
-        get_parents_by_level_diff(
-            window.pure_elements[12],
-            window.pure_elements,
-            1
-        );
+        get_parents_by_level_diff({
+            element: window.pure_elements[11],
+            element_list: window.pure_elements,
+            abs_level_diff: 3,
+            include_parent_children: true,
+            stop_at_first_non_li_for_li: true,
+        });
     });
 })();
