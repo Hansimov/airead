@@ -765,13 +765,17 @@ function compare_element_level(element1, element2) {
     let rank1 = tag_ranks.findIndex((tags) => tags.includes(tag1));
     let rank2 = tag_ranks.findIndex((tags) => tags.includes(tag2));
 
-    let depth1 = depth_of_li(element1);
-    let depth2 = depth_of_li(element2);
+    // add extra depth for item tags
+    if (item_tags.includes(tag1)) {
+        let depth1 = depth_of_li(element1);
+        rank1 = rank1 + depth1 - 1;
+    }
+    if (item_tags.includes(tag2)) {
+        let depth2 = depth_of_li(element2);
+        rank2 = rank2 + depth2 - 1;
+    }
 
-    rank1 = rank1 + depth1;
-    rank2 = rank2 + depth2;
-
-    // if index is -1, set to HEADER_TAGS.length, which means
+    // if index is -1, set to HEADER_TAGS.length, which means treat as para_tags
     rank1 = rank1 === -1 ? HEADER_TAGS.length : rank1;
     rank2 = rank2 === -1 ? HEADER_TAGS.length : rank2;
     return rank1 - rank2;
@@ -804,7 +808,12 @@ function set_pure_element_levels() {
         prev_element = element;
     }
 }
-function get_parents_by_level_diff(element, element_list, abs_level_diff = 0) {
+function get_parents_by_level_diff(
+    element,
+    element_list,
+    abs_level_diff = 0,
+    include_parent_children = true
+) {
     // abs_level_diff = -1: return []
     // abs_level_diff =  0: return siblings with same level
     // abs_level_diff >  0: return elements with diff of levels < abs_level_diff
@@ -818,10 +827,15 @@ function get_parents_by_level_diff(element, element_list, abs_level_diff = 0) {
             // example:
             // if element_level is 6, and abs_level_diff is 1
             // then sibling_level should be 5 or 6
+
             // and since this function is to get parents,
-            // sibling_level must <= element_level
+            // sibling_level must <= element_level by default,
+            // but if include_parent_children is true, then sibling_level can be < element_level
+            let is_include_parent_children =
+                (!include_parent_children && element_level >= sibling_level) ||
+                include_parent_children;
             if (
-                element_level >= sibling_level &&
+                is_include_parent_children &&
                 element_level - sibling_level <= abs_level_diff
             ) {
                 parents.push(sibling);
@@ -1543,7 +1557,7 @@ class ToolPanel {
         get_parents_by_level_diff(
             window.pure_elements[12],
             window.pure_elements,
-            0
+            1
         );
     });
 })();
