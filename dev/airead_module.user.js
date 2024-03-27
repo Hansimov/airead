@@ -729,6 +729,27 @@ function is_header(element) {
 function get_header_level(element) {
     return parseInt(element.tagName.slice(1));
 }
+function depth_of_li(element) {
+    let tag = get_tag(element);
+    let depth = 0;
+    if (LI_TAGS.includes(tag)) {
+        let parents = get_parents(element);
+        depth = parents.filter((parent) =>
+            LIST_TAGS.includes(get_tag(parent))
+        ).length;
+    }
+    if (DD_TAGS.includes(tag)) {
+        let parents = get_parents(element);
+        depth = parents.filter((parent) =>
+            DEF_TAGS.includes(get_tag(parent))
+        ).length;
+    }
+    if (depth > 0) {
+        console.log("depth_of_li", element, depth);
+    }
+    return depth;
+}
+
 function compare_element_level(element1, element2) {
     // Less level means closer to root.
     // -1: level of element1 < element2
@@ -737,12 +758,19 @@ function compare_element_level(element1, element2) {
     let para_tags = ["p", "table", "pre", "img", "blockquote", "math", "code"];
     let item_tags = ["li", "dd", "dt"];
     let tag_ranks = [...HEADER_TAGS, para_tags, item_tags];
-    let rank1 = tag_ranks.findIndex((tags) =>
-        tags.includes(element1.tagName.toLowerCase())
-    );
-    let rank2 = tag_ranks.findIndex((tags) =>
-        tags.includes(element2.tagName.toLowerCase())
-    );
+
+    let tag1 = get_tag(element1);
+    let tag2 = get_tag(element2);
+
+    let rank1 = tag_ranks.findIndex((tags) => tags.includes(tag1));
+    let rank2 = tag_ranks.findIndex((tags) => tags.includes(tag2));
+
+    let depth1 = depth_of_li(element1);
+    let depth2 = depth_of_li(element2);
+
+    rank1 = rank1 + depth1;
+    rank2 = rank2 + depth2;
+
     // if index is -1, set to HEADER_TAGS.length, which means
     rank1 = rank1 === -1 ? HEADER_TAGS.length : rank1;
     rank2 = rank2 === -1 ? HEADER_TAGS.length : rank2;
@@ -1513,7 +1541,7 @@ class ToolPanel {
         }
         set_pure_element_levels();
         get_parents_by_level_diff(
-            window.pure_elements[10],
+            window.pure_elements[12],
             window.pure_elements,
             0
         );
