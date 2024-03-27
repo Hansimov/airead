@@ -585,6 +585,7 @@ const AIREAD_CSS = `
     box-shadow: 0px 0px 4px gray;
     margin: 0px 0px 4px 0px;
     z-index: 1000;
+    font-size: 16px;
 }
 .airead-button:hover {
     background-color: rgba(128, 255, 128, 0.5);
@@ -626,6 +627,7 @@ const AIREAD_CSS = `
     margin: 0;
     border-radius: 2px;
     box-shadow: 0px 0px 3px gray;
+    font-size: small;
 }
 .airead-chat-user-input-option-select-para {
     width: 100px;
@@ -640,6 +642,7 @@ const AIREAD_CSS = `
     margin: 0px 4px 0px 4px;
     border-radius: 12px;
     text-align: right;
+    font-size: small;
 }
 .airead-chat-user-input-option-input {
     max-width: 40px;
@@ -1095,7 +1098,7 @@ class AssistantChatMessageElement {
 window.hovering_element = null;
 window.hovering_chat_user_input_group = null;
 function add_container_to_element(element, tool_button_group) {
-    let container = document.createElement("div");
+    let container = document.createElement("span");
     element.parentNode.replaceChild(container, element);
     container.appendChild(element);
     container.addEventListener("mouseenter", (event) => {
@@ -1595,7 +1598,7 @@ class ToolPanel {
         get_parents_by_level_diff({
             element: window.pure_elements[11],
             element_list: window.pure_elements,
-            rel_level_diff: 3,
+            rel_level_diff: 0,
             include_parent_children: true,
             stop_at_first_non_li_for_li: true,
         });
