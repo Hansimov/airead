@@ -102,6 +102,8 @@ const PARA_TAGS = [].concat(
     DD_TAGS
 );
 
+const NON_TEXT_TAGS = [].concat(TABLE_TAGS, IMG_TAGS, MATH_TAGS);
+
 const CUSTOM_CSS = `
 .pure-element {
     // border: 1px solid #ffcccc !important;
@@ -290,6 +292,18 @@ class PureElementsSelector {
         }
         return output_elements;
     }
+    filter_no_text_elements(elements) {
+        let output_elements = [];
+        for (let i = 0; i < elements.length; i++) {
+            if (
+                !NON_TEXT_TAGS.includes(get_tag(elements[i])) &&
+                elements[i].textContent
+            ) {
+                output_elements.push(elements[i]);
+            }
+        }
+        return output_elements;
+    }
     numbering_elements(elements) {
         console.log("Pure elements count:", elements.length);
         for (let i = 0; i < elements.length; i++) {
@@ -316,6 +330,7 @@ class PureElementsSelector {
         this.filter_removed_elements(pure_elements);
         pure_elements = this.filter_excluded_elements(pure_elements);
         pure_elements = this.filter_atom_elements(pure_elements);
+        pure_elements = this.filter_no_text_elements(pure_elements);
         pure_elements = this.numbering_elements(pure_elements);
         this.pure_elements = pure_elements;
         return this.pure_elements;
@@ -919,7 +934,7 @@ function get_children_by_level_diff({
             return level_dist;
         }
 
-        for (let i = element_index + 1; i >= 0; i++) {
+        for (let i = element_index + 1; i < element_list.length; i++) {
             let sibling = element_list[i];
             let sibling_level = sibling.getAttribute("airead-level");
             // Example:
@@ -1657,7 +1672,7 @@ class ToolPanel {
         //     stop_at_first_non_li_for_li: true,
         // });
         get_children_by_level_diff({
-            element: window.pure_elements[7],
+            element: window.pure_elements[0],
             element_list: window.pure_elements,
             rel_level_diff: 1,
         });
