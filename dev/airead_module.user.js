@@ -623,9 +623,14 @@ const AIREAD_CSS = `
     box-shadow: 0px 0px 4px gray !important;
     background-color: azure !important;
 }
+.airead-element-sibling-hover {
+    border-radius: 4px;
+    box-shadow: 0px 0px 4px gray !important;
+    background-color: bisque !important;
+}
 .airead-element-group-hover {
     box-shadow: 0px 0px 4px gray !important;
-    background-color: Cornsilk !important;
+    background-color: cornsilk !important;
 }
 @keyframes airead-element-focus {
     0% { background-color: initial; }
@@ -1043,6 +1048,42 @@ class ChatUserInput {
             this.user_input_group.parentNode.querySelector(".pure-element");
         return current_pure_element;
     }
+    get_auto_more_siblings() {
+        let siblings = [];
+        let element = this.get_current_pure_element();
+        if (is_header(element)) {
+            let parent_siblings = get_parents_by_level_diff({
+                element: element,
+                element_list: window.pure_elements,
+                rel_level_diff: 2,
+                include_parent_children: false,
+                stop_at_first_non_li_for_li: true,
+            });
+            let children_siblings = get_children_by_level_diff({
+                element: element,
+                element_list: window.pure_elements,
+                rel_level_diff: 2,
+                include_same_level: false,
+            });
+            siblings = [...parent_siblings, ...children_siblings];
+        } else {
+            let parent_siblings = get_parents_by_level_diff({
+                element: element,
+                element_list: window.pure_elements,
+                rel_level_diff: 2,
+                include_parent_children: false,
+                stop_at_first_non_li_for_li: true,
+            });
+            let children_siblings = get_children_by_level_diff({
+                element: element,
+                element_list: window.pure_elements,
+                rel_level_diff: 2,
+                include_same_level: true,
+            });
+            siblings = [...parent_siblings, ...children_siblings];
+        }
+        return siblings;
+    }
     get_last_assistant_chat_message_element() {
         let last_assistant_chat_message_element = null;
         let chat_messages = this.user_input_group.parentNode.querySelectorAll(
@@ -1069,27 +1110,41 @@ class ChatUserInput {
     }
     bind_options() {
         function add_option_html(para_options_select) {
-            let more_para_select_option_html = `&nbsp;:&nbsp;
-            <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by previous count or parent level">
-                <option value="parent_level">parent level</option>
-                <option value="prev_num">prev count</option>
-            </select>
-            <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">
-            <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by next count or child level">
-            <option value="children_level">child level</option>
-            <option value="next_num">next count</option>
-            </select>
-            <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">;`;
             if (para_options_select.value === "more_paras_manual") {
+                let more_para_select_option_html = `&nbsp;:&nbsp;
+                <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by previous count or parent level">
+                    <option value="parent_level">parent level</option>
+                    <option value="prev_num">prev count</option>
+                </select>
+                <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">
+                <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by next count or child level">
+                <option value="children_level">child level</option>
+                <option value="next_num">next count</option>
+                </select>
+                <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">;`;
                 para_options_select.insertAdjacentHTML(
                     "afterend",
                     more_para_select_option_html
                 );
+            } else if (para_options_select.value === "more_paras_auto") {
+                remove_siblings(para_options_select);
+                let more_siblings = self.get_auto_more_siblings();
+                for (let sibling of more_siblings) {
+                    sibling.classList.add("airead-element-sibling-hover");
+                }
+            } else if (para_options_select.value === "only_this_para") {
+                remove_siblings(para_options_select);
+                let more_siblings = self.get_auto_more_siblings();
+                for (let sibling of more_siblings) {
+                    sibling.classList.remove("airead-element-sibling-hover");
+                }
             } else {
                 remove_siblings(para_options_select);
             }
         }
+        let self = this;
         let para_options_select = this.user_input_group.querySelector("select");
+        add_option_html(para_options_select);
         para_options_select.addEventListener("change", function () {
             console.log("Option select:", this.value);
             add_option_html(this);
