@@ -834,6 +834,37 @@ function set_pure_element_levels() {
         prev_element = element;
     }
 }
+function set_pure_element_rel_levels() {
+    let element;
+    let prev_element;
+    let level;
+    for (let i = 0; i < window.pure_elements.length; i++) {
+        element = window.pure_elements[i];
+        if (is_header(element)) {
+            level = get_header_level(element) - 1;
+        } else {
+            if (i === 0) {
+                level = 1;
+            } else {
+                prev_element = window.pure_elements[i - 1];
+                if (is_header(prev_element)) {
+                    level =
+                        parseFloat(
+                            prev_element.getAttribute("airead-level-rel")
+                        ) + 0.5;
+                } else {
+                    let level_diff = compare_element_level(
+                        element,
+                        prev_element
+                    );
+                    level += Math.sign(level_diff);
+                }
+            }
+        }
+        element.setAttribute("airead-level-rel", level);
+    }
+}
+
 function get_parents_by_level_diff({
     element,
     element_list,
@@ -1686,6 +1717,7 @@ class ToolPanel {
             add_container_to_element(element, tool_button_group);
         }
         set_pure_element_levels();
+        set_pure_element_rel_levels();
         // get_parents_by_level_diff({
         //     element: window.pure_elements[11],
         //     element_list: window.pure_elements,
