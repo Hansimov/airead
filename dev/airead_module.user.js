@@ -796,8 +796,9 @@ function compare_element_level(element1, element2) {
     // -1: level of element1 < element2
     // +1: level of element1 < element2
     //  0: level of element1 = element2
-    let para_tags = ["p", "table", "pre", "img", "blockquote", "math", "code"];
-    let tag_ranks = [...HEADER_TAGS, para_tags, ITEM_TAGS];
+    let para_tags = ["p", "blockquote"];
+    let env_tags = ["table", "pre", "img", "math", "code", "figcaption"];
+    let tag_ranks = [...HEADER_TAGS, para_tags, env_tags, ITEM_TAGS];
 
     let tag1 = get_tag(element1);
     let tag2 = get_tag(element2);
@@ -951,7 +952,8 @@ function get_parents_by_depth({
             }
         }
     }
-    console.log("Element:", element, `depth ${depth} parents:`, parents);
+    parents.reverse();
+    console.log(`depth ${depth} parents:`, parents.length);
     return parents;
 }
 
@@ -990,7 +992,7 @@ function get_children_by_depth({
         }
     }
 
-    console.log("Element:", element, `depth ${depth} children:`, children);
+    console.log(`depth ${depth} children:`, children.length);
     return children;
 }
 
@@ -1136,7 +1138,7 @@ class ChatUserInput {
             }
         }
         let para_options_select = self.user_input_group.querySelector("select");
-        add_option_html(para_options_select);
+        // add_option_html(para_options_select);
         para_options_select.addEventListener("change", function () {
             add_option_html(this);
         });
