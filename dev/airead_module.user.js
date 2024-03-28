@@ -893,92 +893,61 @@ function set_pure_element_rel_levels() {
     }
 }
 
-function get_parents_by_level_diff({
+function get_parents_by_depth({
     element,
     element_list,
-    rel_level_diff = 0,
-    include_parent_children = true,
+    depth = 0,
     stop_at_first_non_li_for_li = true,
 } = {}) {
-    // rel_level_diff = -1: return []
-    // rel_level_diff =  0: return siblings with same level
-    // rel_level_diff >  0: return elements with diff of levels < rel_level_diff
     let parents = [];
     let element_index = element_list.indexOf(element);
+    let element_rel_level = parseFloat(
+        element.getAttribute("airead-level-rel")
+    );
     let tag = get_tag(element);
     let item_tags = ["li", "dd", "dt"];
-    if (rel_level_diff >= 0) {
-        let element_level = element.getAttribute("airead-level");
-        let level_dist_map = {
-            [element_level]: 0,
-        };
-        function get_rel_level(sibling) {
-            // Since the original "level" of element is determined by tag, which is absolute,
-            //   it should not be treated as the same concept here for rel_level_diff.
-            // Thus we must compare the "relative" level diff,
-            //   which is aliased as "level_dist" here.
-            let level = sibling.getAttribute("airead-level");
-            let level_dist = 0;
-            // if the level is in map keys, then return the value in level_dist_map,
-            if (level_dist_map[level] !== undefined) {
-                level_dist = level_dist_map[level];
-            } else {
-                // if level less than the min level in the map,
-                // then add a new key `level`, and its dist is the max_dist + 1
-                let min_level = Math.min(...Object.keys(level_dist_map));
-                let max_dist = Math.max(...Object.values(level_dist_map));
-                if (level < min_level) {
-                    level_dist_map[level] = max_dist + 1;
-                    level_dist = level_dist_map[level];
-                }
-            }
-            return level_dist;
-        }
+    for (let i = element_index - 1; i >= 0; i--) {
+        let sibling = element_list[i];
+        let sibling_rel_level = parseFloat(
+            sibling.getAttribute("airead-level-rel")
+        );
+        // Example:
+        //   if element_level is 6, and depth is 1,
+        //   then sibling_level should be 5 or 6.
+        // Since this function is to get parents,
+        //   this is required by default: element_level >= sibling_level;
+        // and if stop_at_first_non_li_for_li is true
+        //   then it would stop at first non-li parent for li element,
+        //   this is to make the result cleaner
+        let level_diff = element_rel_level - sibling_rel_level;
+        if (level_diff > depth) {
+            // this parent is too high, stop
+            break;
+        } else if (level_diff < 0) {
+            // this sibling is too deep, but still not reach the top parent, continue
+            continue;
+        } else {
+            parents.push(sibling);
 
-        for (let i = element_index - 1; i >= 0; i--) {
-            let sibling = element_list[i];
-            let sibling_level = sibling.getAttribute("airead-level");
-            // Example:
-            //   if element_level is 6, and rel_level_diff is 1,
-            //   then sibling_level should be 5 or 6.
-            // Since this function is to get parents,
-            //   this is required by default: element_level >= sibling_level;
-            // but if include_parent_children is true,
-            //   this is allowed: element_level < sibling_level
-            let is_include_parent_children =
-                include_parent_children ||
-                (!include_parent_children && element_level >= sibling_level);
             if (
-                is_include_parent_children &&
-                get_rel_level(sibling) <= rel_level_diff
+                stop_at_first_non_li_for_li &&
+                item_tags.includes(tag) &&
+                !item_tags.includes(get_tag(sibling)) &&
+                level_diff === depth
             ) {
-                parents.push(sibling);
-                // for items (li, dt, dd),
-                //   it might be better to stop at first non-li element
-                // and if element_level <= sibling_level + rel_level_diff - 1
-                //   the do not stop at this element,
-                //   as the +1 means fetch more.
-                if (
-                    stop_at_first_non_li_for_li &&
-                    item_tags.includes(tag) &&
-                    !item_tags.includes(get_tag(sibling)) &&
-                    !(get_rel_level(sibling) <= rel_level_diff - 1)
-                ) {
-                    break;
-                }
-            } else {
                 break;
             }
         }
     }
+    console.log("Element:", element, `depth ${depth} parents:`, parents);
     return parents;
 }
 
-function get_children_by_level_diff({
+function get_children_by_depth({
     element,
     element_list,
-    rel_level_diff = 0,
-    include_same_level = true,
+    depth = 0,
+    include_same_depth = true,
 } = {}) {
     let children = [];
     let element_index = element_list.indexOf(element);
@@ -992,19 +961,19 @@ function get_children_by_level_diff({
         );
 
         // Example:
-        //   if element_level is 6, and rel_level_diff is 1,
+        //   if element_level is 6, and depth is 1,
         //   then sibling_level should be in [5,6]
         // Since this function is to get children,
         //   this is required by default: sibling_rel_level >= element_rel_level
-        // and if include_same_level is false,
+        // and if include_same_depth is false,
         //   then must be: sibling_rel_level > element_rel_level
         let level_diff = sibling_rel_level - element_rel_level;
 
         if (level_diff < 0) {
             break;
         } else if (
-            level_diff > rel_level_diff ||
-            (level_diff === 0 && !include_same_level)
+            level_diff > depth ||
+            (level_diff === 0 && !include_same_depth)
         ) {
             continue;
         } else {
@@ -1012,12 +981,7 @@ function get_children_by_level_diff({
         }
     }
 
-    console.log(
-        "Element:",
-        element,
-        `level ${rel_level_diff} children:`,
-        children
-    );
+    console.log("Element:", element, `depth ${depth} children:`, children);
     return children;
 }
 
@@ -1773,18 +1737,17 @@ class ToolPanel {
         }
         set_pure_element_levels();
         set_pure_element_rel_levels();
-        // get_parents_by_level_diff({
-        //     element: window.pure_elements[11],
-        //     element_list: window.pure_elements,
-        //     rel_level_diff: 0,
-        //     include_parent_children: true,
-        //     stop_at_first_non_li_for_li: true,
-        // });
-        get_children_by_level_diff({
-            element: window.pure_elements[0],
+        get_parents_by_depth({
+            element: window.pure_elements[11],
             element_list: window.pure_elements,
-            rel_level_diff: 2,
-            include_same_level: true,
+            depth: 2,
+            stop_at_first_non_li_for_li: true,
         });
+        // get_children_by_depth({
+        //     element: window.pure_elements[0],
+        //     element_list: window.pure_elements,
+        //     depth: 2,
+        //     include_same_level: true,
+        // });
     });
 })();
