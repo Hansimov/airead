@@ -765,7 +765,10 @@ function remove_siblings(element) {
 }
 
 function is_header(element) {
-    return element.tagName.match(/H[1-6]/i);
+    return get_tag(element).match(/H[1-6]/i);
+}
+function is_item(element) {
+    return ITEM_TAGS.includes(get_tag(element));
 }
 function get_header_level(element) {
     return parseInt(element.tagName.slice(1));
@@ -803,11 +806,11 @@ function compare_element_level(element1, element2) {
     let rank2 = tag_ranks.findIndex((tags) => tags.includes(tag2));
 
     // add extra depth for item tags
-    if (ITEM_TAGS.includes(tag1)) {
+    if (is_item(element1)) {
         let depth1 = depth_of_li(element1);
         rank1 = rank1 + depth1 - 1;
     }
-    if (ITEM_TAGS.includes(tag2)) {
+    if (is_item(element2)) {
         let depth2 = depth_of_li(element2);
         rank2 = rank2 + depth2 - 1;
     }
@@ -935,8 +938,8 @@ function get_parents_by_depth({
 
             if (
                 stop_at_first_non_li_for_li &&
-                ITEM_TAGS.includes(tag) &&
-                !ITEM_TAGS.includes(get_tag(sibling)) &&
+                is_item(element) &&
+                !is_item(sibling) &&
                 level_diff === depth
             ) {
                 break;
@@ -1055,7 +1058,6 @@ class ChatUserInput {
                         <select class="form-control airead-chat-user-input-option-select-para" title="Select more paragraphs as context">
                             <option value="only_this_para">only this para</option>
                             <option value="more_paras_auto" selected="selected">(auto) more paras</option>
-                            <option value="more_paras_manual">(manual) more paras</option>
                         </select>
                     </div>
                 </div>
