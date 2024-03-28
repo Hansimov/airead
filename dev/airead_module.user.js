@@ -622,16 +622,21 @@ const AIREAD_CSS = `
 .airead-element-hover {
     border-radius: 4px;
     box-shadow: 0px 0px 4px gray !important;
-    background-color: azure !important;
+    background-color: Azure !important;
 }
-.airead-element-sibling-hover {
+.airead-element-selected {
     border-radius: 4px;
     box-shadow: 0px 0px 4px gray !important;
-    background-color: bisque !important;
+    background-color: HoneyDew !important;
+}
+.airead-element-sibling-selected {
+    border-radius: 4px;
+    box-shadow: 0px 0px 4px gray !important;
+    background-color: Bisque !important;
 }
 .airead-element-group-hover {
     box-shadow: 0px 0px 4px gray !important;
-    background-color: cornsilk !important;
+    background-color: Cornsilk !important;
 }
 @keyframes airead-element-focus {
     0% { background-color: initial; }
@@ -895,7 +900,7 @@ function set_pure_element_rel_levels() {
 
 function get_parents_by_depth({
     element,
-    element_list,
+    element_list = window.pure_elements,
     depth = 0,
     stop_at_first_non_li_for_li = true,
 } = {}) {
@@ -944,7 +949,7 @@ function get_parents_by_depth({
 
 function get_children_by_depth({
     element,
-    element_list,
+    element_list = window.pure_elements,
     depth = 0,
     include_same_depth = true,
 } = {}) {
@@ -984,6 +989,62 @@ function get_children_by_depth({
     return children;
 }
 
+function get_auto_more_siblings({ element, depth = 1.5 } = {}) {
+    let siblings = [];
+    let parent_siblings = get_parents_by_depth({
+        element: element,
+        depth: depth,
+        stop_at_first_non_li_for_li: true,
+    });
+    let children_siblings;
+    if (is_header(element)) {
+        children_siblings = get_children_by_depth({
+            element: element,
+            depth: depth,
+            include_same_depth: false,
+        });
+    } else {
+        children_siblings = get_children_by_depth({
+            element: element,
+            depth: depth,
+            include_same_depth: true,
+        });
+    }
+    siblings = [...parent_siblings, ...children_siblings];
+    return siblings;
+}
+function highlight_siblings({ element, para_option = "more_paras_auto" } = {}) {
+    let siblings = [];
+    if (para_option === "more_paras_auto") {
+        siblings = get_auto_more_siblings({
+            element: element,
+        });
+        for (let sibling of siblings) {
+            sibling.classList.add("airead-element-sibling-selected");
+        }
+    } else if (para_option === "more_paras_manual") {
+    } else {
+    }
+    element.classList.add("airead-element-selected");
+}
+function de_highlight_siblings({
+    element,
+    para_option = "more_paras_auto",
+} = {}) {
+    let siblings = [];
+    if (para_option === "more_paras_auto") {
+        siblings = get_auto_more_siblings({
+            element: element,
+        });
+        for (let sibling of siblings) {
+            sibling.classList.remove("airead-element-sibling-selected");
+        }
+    } else if (para_option === "more_paras_manual") {
+    } else {
+    }
+    element.classList.remove("airead-element-selected");
+}
+
 class ChatUserInput {
     constructor() {}
     construct_html() {
@@ -1011,34 +1072,6 @@ class ChatUserInput {
             this.user_input_group.parentNode.querySelector(".pure-element");
         return current_pure_element;
     }
-    get_auto_more_siblings(depth = 1.5) {
-        let siblings = [];
-        let element = this.get_current_pure_element();
-        let parent_siblings = get_parents_by_depth({
-            element: element,
-            element_list: window.pure_elements,
-            depth: depth,
-            stop_at_first_non_li_for_li: true,
-        });
-        let children_siblings;
-        if (is_header(element)) {
-            children_siblings = get_children_by_depth({
-                element: element,
-                element_list: window.pure_elements,
-                depth: depth,
-                include_same_depth: false,
-            });
-        } else {
-            children_siblings = get_children_by_depth({
-                element: element,
-                element_list: window.pure_elements,
-                depth: depth,
-                include_same_depth: true,
-            });
-        }
-        siblings = [...parent_siblings, ...children_siblings];
-        return siblings;
-    }
     get_last_assistant_chat_message_element() {
         let last_assistant_chat_message_element = null;
         let chat_messages = this.user_input_group.parentNode.querySelectorAll(
@@ -1064,6 +1097,7 @@ class ChatUserInput {
         return "";
     }
     bind_options() {
+        let self = this;
         function add_option_html(para_options_select) {
             if (para_options_select.value === "more_paras_manual") {
                 let more_para_select_option_html = `&nbsp;:&nbsp;
@@ -1083,25 +1117,23 @@ class ChatUserInput {
                 );
             } else if (para_options_select.value === "more_paras_auto") {
                 remove_siblings(para_options_select);
-                let more_siblings = self.get_auto_more_siblings();
-                for (let sibling of more_siblings) {
-                    sibling.classList.add("airead-element-sibling-hover");
-                }
+                highlight_siblings({
+                    element: self.get_current_pure_element(),
+                    para_option: "more_paras_auto",
+                });
             } else if (para_options_select.value === "only_this_para") {
                 remove_siblings(para_options_select);
-                let more_siblings = self.get_auto_more_siblings();
-                for (let sibling of more_siblings) {
-                    sibling.classList.remove("airead-element-sibling-hover");
-                }
+                de_highlight_siblings({
+                    element: self.get_current_pure_element(),
+                    para_option: "more_paras_auto",
+                });
             } else {
                 remove_siblings(para_options_select);
             }
         }
-        let self = this;
-        let para_options_select = this.user_input_group.querySelector("select");
+        let para_options_select = self.user_input_group.querySelector("select");
         add_option_html(para_options_select);
         para_options_select.addEventListener("change", function () {
-            console.log("Option select:", this.value);
             add_option_html(this);
         });
     }
@@ -1349,6 +1381,16 @@ class ToolButtonGroup {
                     chat_message.style.display = "block";
                 }
                 this.chat_button.innerHTML = "Hide";
+
+                let para_options_select = element.parentNode.querySelector(
+                    ".airead-chat-user-input-option-select-para"
+                );
+                if (para_options_select) {
+                    highlight_siblings({
+                        element: element,
+                        para_option: para_options_select.value,
+                    });
+                }
             } else if (chat_button_text === "hide") {
                 // hide chat_user_input_group
                 let chat_user_input_group = element.parentNode.querySelector(
@@ -1363,6 +1405,14 @@ class ToolButtonGroup {
                     chat_message.style.display = "none";
                 }
                 this.chat_button.innerHTML = "Chat";
+
+                let para_options_select = element.parentNode.querySelector(
+                    ".airead-chat-user-input-option-select-para"
+                );
+                de_highlight_siblings({
+                    element: element,
+                    para_option: para_options_select.value,
+                });
             } else {
             }
         };
@@ -1728,12 +1778,12 @@ class ToolPanel {
         }
         set_pure_element_levels();
         set_pure_element_rel_levels();
-        get_parents_by_depth({
-            element: window.pure_elements[11],
-            element_list: window.pure_elements,
-            depth: 2,
-            stop_at_first_non_li_for_li: true,
-        });
+        // get_parents_by_depth({
+        //     element: window.pure_elements[11],
+        //     element_list: window.pure_elements,
+        //     depth: 2,
+        //     stop_at_first_non_li_for_li: true,
+        // });
         // get_children_by_depth({
         //     element: window.pure_elements[0],
         //     element_list: window.pure_elements,
