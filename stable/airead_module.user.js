@@ -48,12 +48,15 @@ function require_modules() {
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css";
     let font_awesome_v4_css =
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/v4-shims.min.css";
+    let leader_line_js =
+        "https://cdnjs.cloudflare.com/ajax/libs/leader-line/1.0.3/leader-line.min.js";
     return Promise.all([
         require_module(jquery_js),
         require_module(bootstrap_js),
         require_module(bootstrap_css),
         require_module(font_awesome_css),
         require_module(font_awesome_v4_css),
+        require_module(leader_line_js),
     ]);
 }
 
@@ -80,9 +83,10 @@ const LI_TAGS = ["li"];
 const DD_TAGS = ["dt", "dd"];
 const LINK_TAGS = ["a"];
 const SPAN_TAGS = ["span"];
-
 const MATH_TAGS = ["math"];
 const CODE_TAGS = ["code"];
+
+const ITEM_TAGS = ["li", "dd", "dt"];
 
 const ATOM_TAGS = [].concat(
     HEADER_TAGS,
@@ -94,12 +98,15 @@ const ATOM_TAGS = [].concat(
 );
 const PARA_TAGS = [].concat(
     GROUP_TAGS,
+    // SPAN_TAGS,
     LIST_TAGS,
     DEF_TAGS,
     P_TAGS,
     LI_TAGS,
     DD_TAGS
 );
+
+const NON_TEXT_TAGS = [].concat(TABLE_TAGS, IMG_TAGS, MATH_TAGS);
 
 const CUSTOM_CSS = `
 .pure-element {
@@ -114,7 +121,7 @@ const CUSTOM_CSS = `
 
 // Removed Elements classes and ids
 
-const COMMON_REMOVED_CLASSES = ["footer"];
+const COMMON_REMOVED_CLASSES = ["(?<!flex-wrap-)footer"];
 const WIKIPEDIA_REMOVED_CLASSES = [
     "mw-editsection",
     "(vector-)((user-links)|(menu-content)|(body-before-content)|(page-toolbar))",
@@ -131,14 +138,15 @@ const REMOVED_CLASSES = [].concat(
 // Excluded Elements classes and ids
 
 const COMMON_EXCLUDED_CLASSES = [
-    "(?<!has)sidebar",
+    "(?<!has-?)sidebar",
     "related",
-    "comment",
+    // "comment",
     "topbar",
     "offcanvas",
     "navbar",
     "sf-hidden",
     "noprint",
+    "is-hidden-mobile",
 ];
 const WIKIPEDIA_EXCLUDED_CLASSES = [
     "(mw-)((jump-link)|(valign-text-top))",
@@ -151,15 +159,22 @@ const WIKIPEDIA_EXCLUDED_CLASSES = [
     "contentSub",
     "siteNotice",
 ];
-const ARXIV_EXCLUDED_CLASSES = ["(ltx_)((flex_break)|(pagination))"];
+const ARXIV_EXCLUDED_CLASSES = [
+    "(ltx_)((flex_break)|(pagination))",
+    "extra-services",
+];
 const DOCS_PYTHON_EXCLUDED_CLASSES = ["clearer"];
+const AMINER_EXCLUDED_CLASSES = ["dropcontent", "LayoutsHeaderPlaceholder"];
+const WEIBO_EXCLUDED_CLASSES = ["nav_main", "index_box"];
 
 const EXCLUDED_CLASSES = [].concat(
     REMOVED_CLASSES,
     COMMON_EXCLUDED_CLASSES,
     WIKIPEDIA_EXCLUDED_CLASSES,
     ARXIV_EXCLUDED_CLASSES,
-    DOCS_PYTHON_EXCLUDED_CLASSES
+    DOCS_PYTHON_EXCLUDED_CLASSES,
+    AMINER_EXCLUDED_CLASSES,
+    WEIBO_EXCLUDED_CLASSES
 );
 
 // Helper Functions
@@ -281,6 +296,29 @@ class PureElementsSelector {
         }
         return output_elements;
     }
+    filter_no_text_elements(elements) {
+        let output_elements = [];
+        for (let i = 0; i < elements.length; i++) {
+            if (
+                elements[i].textContent ||
+                NON_TEXT_TAGS.includes(get_tag(elements[i]))
+            ) {
+                output_elements.push(elements[i]);
+            }
+        }
+        return output_elements;
+    }
+    filter_overlapped_elements(elements) {
+        let output_elements = [...elements];
+        for (let element of elements) {
+            let parents = get_parents(element);
+            output_elements = output_elements.filter(
+                (element) => !parents.includes(element)
+            );
+        }
+        return output_elements;
+    }
+
     numbering_elements(elements) {
         console.log("Pure elements count:", elements.length);
         for (let i = 0; i < elements.length; i++) {
@@ -307,6 +345,8 @@ class PureElementsSelector {
         this.filter_removed_elements(pure_elements);
         pure_elements = this.filter_excluded_elements(pure_elements);
         pure_elements = this.filter_atom_elements(pure_elements);
+        pure_elements = this.filter_no_text_elements(pure_elements);
+        pure_elements = this.filter_overlapped_elements(pure_elements);
         pure_elements = this.numbering_elements(pure_elements);
         this.pure_elements = pure_elements;
         return this.pure_elements;
@@ -562,9 +602,6 @@ function chat_completions({
 // ===================== AIRead Start ===================== //
 
 const AIREAD_CSS = `
-.pure-element {
-}
-
 .airead-tool-button-group {
     display: block;
     position: absolute;
@@ -579,14 +616,30 @@ const AIREAD_CSS = `
     box-shadow: 0px 0px 4px gray;
     margin: 0px 0px 4px 0px;
     z-index: 1000;
+    font-size: 16px;
 }
 .airead-button:hover {
     background-color: rgba(128, 255, 128, 0.5);
 }
 
 .airead-element-hover {
+    border-radius: 4px;
     box-shadow: 0px 0px 4px gray !important;
-    background-color: azure !important;
+    background-color: Azure !important;
+}
+.airead-element-selected {
+    border-radius: 4px;
+    box-shadow: 0px 0px 4px gray !important;
+    background-color: AliceBlue !important;
+}
+.airead-element-sibling-selected {
+    border-radius: 4px;
+    box-shadow: 0px 0px 4px gray !important;
+    background-color: Bisque !important;
+}
+.airead-element-group-hover {
+    box-shadow: 0px 0px 4px gray !important;
+    background-color: Cornsilk !important;
 }
 @keyframes airead-element-focus {
     0% { background-color: initial; }
@@ -598,19 +651,50 @@ const AIREAD_CSS = `
 }
 
 .airead-chat-user-input-group {
+}
+
+.airead-chat-user-input {
+    resize: none;
+    border-radius: 4px;
     box-shadow: 0px 0px 4px gray;
-    border-radius: 10px;
     max-height: 300px;
     overflow-y: auto;
 }
-.airead-chat-user-input {
-    resize: none;
+.airead-chat-user-input-options {
+}
+.airead-chat-user-input-option-select-para,
+.airead-chat-user-input-option-select-level {
+    padding: 0px 2px 0px 2px;
+    margin: 0;
+    border-radius: 2px;
+    box-shadow: 0px 0px 3px gray;
+    font-size: small;
+}
+.airead-chat-user-input-option-select-para {
+    width: 100px;
+}
+.airead-chat-user-input-option-select-level {
+    width: auto;
+    box-shadow: none;
+}
+.airead-chat-user-input-option-input-short,
+.airead-chat-user-input-option-input {
+    padding: 0px 0px 0px 0px;
+    margin: 0px 4px 0px 4px;
+    border-radius: 12px;
+    text-align: right;
+    font-size: small;
+}
+.airead-chat-user-input-option-input {
+    max-width: 40px;
+}
+.airead-chat-user-input-option-input-short {
+    max-width: 30px;
 }
 .airead-chat-message-user {
     background-color: rgba(128, 255, 128, 0.1);
     text-align: left;
 }
-
 .airead-chat-message-assistant {
     background-color: rgba(180, 180, 255, 0.1);
     text-align: left;
@@ -639,6 +723,11 @@ const AIREAD_CSS = `
     border: none;
     background-color: transparent;
     font-size: 32px;
+}
+
+.leader-line {
+    z-index: 950;
+    background-color: transparent;
 }
 `;
 
@@ -674,13 +763,348 @@ function get_pure_parent(element) {
     return parent;
 }
 
+function remove_siblings(element) {
+    let sibling = element.nextSibling;
+    while (sibling) {
+        let next_sibling = sibling.nextSibling;
+        sibling.remove();
+        sibling = next_sibling;
+    }
+}
+
+function is_header(element) {
+    return get_tag(element).match(/H[1-6]/i);
+}
+function is_item(element) {
+    return ITEM_TAGS.includes(get_tag(element));
+}
+function get_header_level(element) {
+    return parseInt(element.tagName.slice(1));
+}
+function depth_of_li(element) {
+    let tag = get_tag(element);
+    let depth = 0;
+    if (LI_TAGS.includes(tag)) {
+        let parents = get_parents(element);
+        depth = parents.filter((parent) =>
+            LIST_TAGS.includes(get_tag(parent))
+        ).length;
+    }
+    if (DD_TAGS.includes(tag)) {
+        let parents = get_parents(element);
+        depth = parents.filter((parent) =>
+            DEF_TAGS.includes(get_tag(parent))
+        ).length;
+    }
+    return depth;
+}
+
+function compare_element_level(element1, element2) {
+    // Less level means closer to root.
+    // -1: level of element1 < element2
+    // +1: level of element1 < element2
+    //  0: level of element1 = element2
+    let para_tags = ["p", "blockquote"];
+    let env_tags = ["table", "pre", "img", "math", "code", "figcaption"];
+    let tag_ranks = [...HEADER_TAGS, para_tags, env_tags, ITEM_TAGS];
+
+    let tag1 = get_tag(element1);
+    let tag2 = get_tag(element2);
+
+    let rank1 = tag_ranks.findIndex((tags) => tags.includes(tag1));
+    let rank2 = tag_ranks.findIndex((tags) => tags.includes(tag2));
+
+    // add extra depth for item tags
+    if (is_item(element1)) {
+        let depth1 = depth_of_li(element1);
+        rank1 = rank1 + depth1 - 1;
+    }
+    if (is_item(element2)) {
+        let depth2 = depth_of_li(element2);
+        rank2 = rank2 + depth2 - 1;
+    }
+
+    // if index is -1, set to HEADER_TAGS.length, which means treat as para_tags
+    rank1 = rank1 === -1 ? HEADER_TAGS.length : rank1;
+    rank2 = rank2 === -1 ? HEADER_TAGS.length : rank2;
+    return rank1 - rank2;
+}
+function set_pure_element_levels() {
+    let level;
+    let prev_level;
+    let prev_element = null;
+    for (let element of window.pure_elements) {
+        if (!prev_element) {
+            if (is_header(element)) {
+                level = get_header_level(element) - 1;
+            } else {
+                level = 1;
+            }
+        } else {
+            if (is_header(element)) {
+                level = get_header_level(element) - 1;
+                if (level < prev_level) {
+                    level = Math.min(prev_level + 1, level);
+                }
+            } else {
+                let level_diff = compare_element_level(element, prev_element);
+                level = level + level_diff;
+            }
+        }
+        element.setAttribute("airead-level", level);
+        prev_level = level;
+        prev_element = element;
+    }
+}
+function set_pure_element_rel_levels() {
+    let element;
+    let prev_element;
+    let level;
+    for (let i = 0; i < window.pure_elements.length; i++) {
+        element = window.pure_elements[i];
+        if (is_header(element)) {
+            level = get_header_level(element) - 1;
+
+            // Following codes are handling the case
+            //   that the diff of adjacent increasing headers is greater than 1
+            // for example, in ar5iv.org,
+            //   tag of `Abstract` is `h6`, but it is directly after title (`h1`) (level=0)
+            //   so the "correct" rel level of `Abstract` should be 1.5
+            // The additional 0.5 is to distinguish `Abstract` from normal `h2` headers\
+            //   (such as `Introduction` or `Background`)
+            let prev_header_element = null;
+            for (let j = i - 1; j >= 0; j--) {
+                prev_header_element = window.pure_elements[j];
+                if (is_header(prev_header_element)) {
+                    break;
+                }
+            }
+            if (prev_header_element) {
+                let pre_header_rel_level = parseFloat(
+                    prev_header_element.getAttribute("airead-level-rel")
+                );
+                if (level - pre_header_rel_level > 1) {
+                    level = pre_header_rel_level + 1.5;
+                }
+            }
+        } else {
+            if (i === 0) {
+                level = 1;
+            } else {
+                prev_element = window.pure_elements[i - 1];
+                if (is_header(prev_element)) {
+                    level =
+                        parseFloat(
+                            prev_element.getAttribute("airead-level-rel")
+                        ) + 0.5;
+                    if (is_item(element)) {
+                        level += 1;
+                    }
+                } else {
+                    let level_diff = compare_element_level(
+                        element,
+                        prev_element
+                    );
+                    level += Math.sign(level_diff);
+                }
+            }
+        }
+        element.setAttribute("airead-level-rel", level);
+    }
+}
+
+function get_parents_by_depth({
+    element,
+    element_list = window.pure_elements,
+    depth = 0,
+    stop_at_first_non_li_for_li = true,
+    tolerant_depth = 1,
+} = {}) {
+    let parents = [];
+    let element_index = element_list.indexOf(element);
+    let element_rel_level = parseFloat(
+        element.getAttribute("airead-level-rel")
+    );
+    let tag = get_tag(element);
+    for (let i = element_index - 1; i >= 0; i--) {
+        let sibling = element_list[i];
+        let sibling_rel_level = parseFloat(
+            sibling.getAttribute("airead-level-rel")
+        );
+        // Example:
+        //   if element_level is 6, and depth is 1,
+        //   then sibling_level should be 5 or 6.
+        // Since this function is to get parents,
+        //   this is required by default: element_level >= sibling_level;
+        // and if stop_at_first_non_li_for_li is true
+        //   then it would stop at first non-li parent for li element,
+        //   this is to make the result cleaner
+        let level_diff = element_rel_level - sibling_rel_level;
+        if (level_diff > depth) {
+            // this parent is too high, stop
+            break;
+        } else if (level_diff + tolerant_depth < 0) {
+            // this sibling is too deep, but still not reach the top parent, continue
+            // tolerant_depth means allowed depth diff that sibling is greater than element
+            continue;
+        } else {
+            parents.push(sibling);
+
+            if (
+                stop_at_first_non_li_for_li &&
+                is_item(element) &&
+                !is_item(sibling) &&
+                level_diff === depth
+            ) {
+                break;
+            }
+        }
+    }
+    parents.reverse();
+    console.log(`depth ${depth} parents:`, parents.length);
+    return parents;
+}
+
+function get_children_by_depth({
+    element,
+    element_list = window.pure_elements,
+    depth = 0,
+    include_same_depth = true,
+} = {}) {
+    let children = [];
+    let element_index = element_list.indexOf(element);
+    let element_rel_level = parseFloat(
+        element.getAttribute("airead-level-rel")
+    );
+    for (let i = element_index + 1; i < element_list.length; i++) {
+        let sibling = element_list[i];
+        let sibling_rel_level = parseFloat(
+            sibling.getAttribute("airead-level-rel")
+        );
+
+        // Example:
+        //   if element_level is 6, and depth is 1,
+        //   then sibling_level should be in [5,6]
+        // Since this function is to get children,
+        //   this is required by default: sibling_rel_level >= element_rel_level
+        // and if include_same_depth is false,
+        //   then must be: sibling_rel_level > element_rel_level
+        let level_diff = sibling_rel_level - element_rel_level;
+
+        if (level_diff < 0 || (level_diff === 0 && !include_same_depth)) {
+            break;
+        } else if (level_diff > depth) {
+            continue;
+        } else {
+            children.push(sibling);
+        }
+    }
+
+    console.log(`depth ${depth} children:`, children.length);
+    return children;
+}
+
+function get_auto_more_siblings({
+    element,
+    depth = 1.5,
+    return_parts = false,
+} = {}) {
+    let siblings = [];
+    let parent_siblings = get_parents_by_depth({
+        element: element,
+        depth: depth,
+        stop_at_first_non_li_for_li: true,
+    });
+    let children_siblings;
+    if (is_header(element)) {
+        children_siblings = get_children_by_depth({
+            element: element,
+            depth: depth,
+            include_same_depth: false,
+        });
+    } else {
+        children_siblings = get_children_by_depth({
+            element: element,
+            depth: depth,
+            include_same_depth: true,
+        });
+    }
+    if (return_parts) {
+        return [parent_siblings, children_siblings];
+    } else {
+        siblings = [...parent_siblings, ...children_siblings];
+        return siblings;
+    }
+}
+
+function get_more_siblings({
+    element,
+    para_options = "more_paras_auto",
+    return_parts = false,
+} = {}) {
+    if (para_options === "more_paras_auto") {
+        return get_auto_more_siblings({
+            element: element,
+            return_parts: return_parts,
+        });
+    } else {
+        if (return_parts) {
+            return [[], []];
+        } else {
+            return [];
+        }
+    }
+}
+
+function draw_leader_line(element1, element2) {
+    let leader_line = new LeaderLine(element1, element2, {
+        startSocket: "right",
+        endSocket: "right",
+        path: "grid",
+        size: 3,
+        color: "LightSalmon",
+    });
+    return leader_line;
+}
+function remove_leader_lines() {
+    let lines = document.querySelectorAll("svg.leader-line");
+    for (let line of lines) {
+        line.remove();
+    }
+}
+function highlight_siblings({ element, siblings = [] } = {}) {
+    for (let sibling of siblings) {
+        sibling.classList.add("airead-element-sibling-selected");
+    }
+    draw_leader_line(element, siblings[0]);
+    draw_leader_line(element, siblings[siblings.length - 1]);
+    element.classList.add("airead-element-selected");
+}
+function de_highlight_siblings({ element, siblings = [] } = {}) {
+    for (let sibling of siblings) {
+        sibling.classList.remove("airead-element-sibling-selected");
+    }
+    element.classList.remove("airead-element-selected");
+    remove_leader_lines();
+}
+
 class ChatUserInput {
     constructor() {}
     construct_html() {
         let html = `
-            <div class="col-auto px-0">
-                <textarea class="form-control airead-chat-user-input" rows="1"
-                    placeholder="Ask about this paragraph ..."></textarea>
+            <div class="my-2 row no-gutters airead-chat-user-input-group">
+                <div class="airead-chat-user-input-options">
+                    <div class="col px-0 pb-2 d-flex align-items-left">
+                        <select class="form-control airead-chat-user-input-option-select-para" title="Select more paragraphs as context">
+                            <option value="only_this_para">only this para</option>
+                            <option value="more_paras_auto" selected="selected">(auto) more paras</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-auto px-0">
+                    <textarea class="form-control airead-chat-user-input" rows="1"
+                        placeholder="Ask about this paragraph ..."></textarea>
+                </div>
             </div>
         `;
         return html;
@@ -714,16 +1138,80 @@ class ChatUserInput {
         }
         return "";
     }
-    spawn(parent_element) {
-        this.user_input_group = document.createElement("div");
-        this.user_input_group.innerHTML = this.construct_html();
-        parent_element.parentNode.appendChild(this.user_input_group);
-        this.user_input_group.classList.add(
-            "my-2",
-            "row",
-            "no-gutters",
-            "airead-chat-user-input-group"
-        );
+    get_selected_elements_context() {
+        let element = this.get_current_pure_element();
+        let para_options_select = this.user_input_group.querySelector("select");
+        let parents_and_children_siblings = get_more_siblings({
+            element: this.get_current_pure_element(),
+            para_options: para_options_select.value,
+            return_parts: true,
+        });
+        let parent_siblings = parents_and_children_siblings[0];
+        let children_siblings = parents_and_children_siblings[1];
+        let context = "";
+        let selected_elements = [
+            ...parent_siblings,
+            element,
+            ...children_siblings,
+        ];
+        for (let selected_element of selected_elements) {
+            let element_text = get_element_text(selected_element);
+            context += element_text + "\n\n";
+        }
+        return context;
+    }
+    bind_options() {
+        let self = this;
+        let element = self.get_current_pure_element();
+        function add_option_html(para_options_select) {
+            if (para_options_select.value === "more_paras_manual") {
+                let more_para_select_option_html = `&nbsp;:&nbsp;
+                <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by previous count or parent level">
+                    <option value="parent_level">parent level</option>
+                    <option value="prev_num">prev count</option>
+                </select>
+                <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">
+                <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by next count or child level">
+                <option value="children_level">child level</option>
+                <option value="next_num">next count</option>
+                </select>
+                <input type="number" class="form-control airead-chat-user-input-option-input" min="-1" max="10" step="1" value="-1">;`;
+                para_options_select.insertAdjacentHTML(
+                    "afterend",
+                    more_para_select_option_html
+                );
+            } else if (para_options_select.value === "more_paras_auto") {
+                remove_siblings(para_options_select);
+                let siblings = get_more_siblings({
+                    element: element,
+                    para_options: "more_paras_auto",
+                });
+                highlight_siblings({
+                    element: element,
+                    siblings: siblings,
+                });
+            } else if (para_options_select.value === "only_this_para") {
+                remove_siblings(para_options_select);
+                let siblings = get_more_siblings({
+                    element: element,
+                    para_options: "more_paras_auto",
+                });
+                de_highlight_siblings({
+                    element: element,
+                    siblings: siblings,
+                });
+            } else {
+                remove_siblings(para_options_select);
+            }
+        }
+        let para_options_select = self.user_input_group.querySelector("select");
+        add_option_html(para_options_select);
+        para_options_select.addEventListener("change", function () {
+            add_option_html(this);
+        });
+    }
+    bind_user_input(parent_element) {
+        let self = this;
         let user_input = this.user_input_group.querySelector("textarea");
         user_input.addEventListener(
             "input",
@@ -733,7 +1221,6 @@ class ChatUserInput {
             },
             false
         );
-        let self = this;
         user_input.addEventListener("keypress", (event) => {
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -755,9 +1242,7 @@ class ChatUserInput {
                 assistant_chat_message.spawn(parent_element);
                 let last_assistant_chat_message_element =
                     self.get_last_assistant_chat_message_element();
-
-                let context = get_element_text(this.get_current_pure_element());
-                context = context.replace(/\s+/g, " ");
+                let context = self.get_selected_elements_context();
                 chat_completions({
                     messages: [
                         {
@@ -785,7 +1270,14 @@ class ChatUserInput {
                 });
             }
         });
-
+    }
+    spawn(parent_element) {
+        this.user_input_group = document.createElement("div");
+        this.user_input_group.innerHTML = this.construct_html().trim();
+        this.user_input_group = this.user_input_group.firstChild;
+        parent_element.parentNode.appendChild(this.user_input_group);
+        this.bind_user_input(parent_element);
+        this.bind_options();
         return this.user_input_group;
     }
 }
@@ -841,7 +1333,7 @@ class AssistantChatMessageElement {
 window.hovering_element = null;
 window.hovering_chat_user_input_group = null;
 function add_container_to_element(element, tool_button_group) {
-    let container = document.createElement("div");
+    let container = document.createElement("airead-container");
     element.parentNode.replaceChild(container, element);
     container.appendChild(element);
     container.addEventListener("mouseenter", (event) => {
@@ -889,8 +1381,8 @@ class ToolButtonGroup {
         this.button_group.id = "airead-tool-button-group";
         this.button_group.classList.add("airead-tool-button-group");
         this.chat_button = this.create_button("Chat", () => {});
-        this.copy_button = this.create_button("Print", () => {});
-        this.parent_button = this.create_button("Parent", () => {});
+        // this.copy_button = this.create_button("Print", () => {});
+        // this.parent_button = this.create_button("Parent", () => {});
 
         document.body.prepend(this.button_group);
 
@@ -924,9 +1416,6 @@ class ToolButtonGroup {
         window.addEventListener("resize", update_button_group_position);
     }
     bind_buttons_func_to_element(element) {
-        this.copy_button.onclick = () => {
-            console.log("Print:", get_element_text(element));
-        };
         // find in children of element.parentNode,
         // if any chat_user_input_group and display not "none", set chat_button text to "Hide"
         // else set to "Chat"
@@ -944,6 +1433,9 @@ class ToolButtonGroup {
 
         this.chat_button.onclick = () => {
             let chat_button_text = this.chat_button.innerHTML.toLowerCase();
+            let para_options_select = element.parentNode.querySelector(
+                ".airead-chat-user-input-option-select-para"
+            );
             if (chat_button_text === "chat") {
                 // create new ChatUserInput if last sibling of element is not user_input
                 let last_child = element.parentNode.lastChild;
@@ -963,6 +1455,16 @@ class ToolButtonGroup {
                     chat_message.style.display = "block";
                 }
                 this.chat_button.innerHTML = "Hide";
+                if (para_options_select) {
+                    let siblings = get_more_siblings({
+                        element: element,
+                        para_options: "more_paras_auto",
+                    });
+                    highlight_siblings({
+                        element: element,
+                        siblings: siblings,
+                    });
+                }
             } else if (chat_button_text === "hide") {
                 // hide chat_user_input_group
                 let chat_user_input_group = element.parentNode.querySelector(
@@ -977,20 +1479,31 @@ class ToolButtonGroup {
                     chat_message.style.display = "none";
                 }
                 this.chat_button.innerHTML = "Chat";
+                let siblings = get_more_siblings({
+                    element: element,
+                    para_options: "more_paras_auto",
+                });
+                de_highlight_siblings({
+                    element: element,
+                    siblings: siblings,
+                });
             } else {
             }
         };
-        this.parent_button.onclick = () => {
-            let pure_parent = get_pure_parent(element);
-            // focus on the parent
-            pure_parent.focus();
-            pure_parent.scrollIntoView({ behavior: "smooth", block: "start" });
-            pure_parent.classList.add("airead-element-focus");
-            setTimeout(() => {
-                pure_parent.classList.remove("airead-element-focus");
-            }, 1500);
-            console.log("Goto Parent:", pure_parent, "of:", element);
-        };
+        // this.copy_button.onclick = () => {
+        //     console.log("Print:", get_element_text(element));
+        // };
+        // this.parent_button.onclick = () => {
+        //     let pure_parent = get_pure_parent(element);
+        //     // focus on the parent
+        //     pure_parent.focus();
+        //     pure_parent.scrollIntoView({ behavior: "smooth", block: "start" });
+        //     pure_parent.classList.add("airead-element-focus");
+        //     setTimeout(() => {
+        //         pure_parent.classList.remove("airead-element-focus");
+        //     }, 1500);
+        //     console.log("Goto Parent:", pure_parent, "of:", element);
+        // };
     }
     attach_to_element(element = null) {
         if (element) {
@@ -1168,7 +1681,7 @@ class SettingsModal {
                     let option = new Option(model, model);
                     models_select.append(option);
                 }
-                console.log(`Get models from ${endpoint}:`, models);
+                // console.log(`Get models from ${endpoint}:`, models);
             });
         }
     }
@@ -1337,5 +1850,7 @@ class ToolPanel {
         for (let element of window.pure_elements) {
             add_container_to_element(element, tool_button_group);
         }
+        set_pure_element_levels();
+        set_pure_element_rel_levels();
     });
 })();
