@@ -888,6 +888,9 @@ function set_pure_element_rel_levels() {
                         parseFloat(
                             prev_element.getAttribute("airead-level-rel")
                         ) + 0.5;
+                    if (is_item(element)) {
+                        level += 1;
+                    }
                 } else {
                     let level_diff = compare_element_level(
                         element,
@@ -906,6 +909,7 @@ function get_parents_by_depth({
     element_list = window.pure_elements,
     depth = 0,
     stop_at_first_non_li_for_li = true,
+    tolerant_depth = 1,
 } = {}) {
     let parents = [];
     let element_index = element_list.indexOf(element);
@@ -930,8 +934,9 @@ function get_parents_by_depth({
         if (level_diff > depth) {
             // this parent is too high, stop
             break;
-        } else if (level_diff < 0) {
+        } else if (level_diff + tolerant_depth < 0) {
             // this sibling is too deep, but still not reach the top parent, continue
+            // tolerant_depth means allowed depth diff that sibling is greater than element
             continue;
         } else {
             parents.push(sibling);
@@ -976,12 +981,9 @@ function get_children_by_depth({
         //   then must be: sibling_rel_level > element_rel_level
         let level_diff = sibling_rel_level - element_rel_level;
 
-        if (level_diff < 0) {
+        if (level_diff < 0 || (level_diff === 0 && !include_same_depth)) {
             break;
-        } else if (
-            level_diff > depth ||
-            (level_diff === 0 && !include_same_depth)
-        ) {
+        } else if (level_diff > depth) {
             continue;
         } else {
             children.push(sibling);
