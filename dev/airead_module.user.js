@@ -80,9 +80,10 @@ const LI_TAGS = ["li"];
 const DD_TAGS = ["dt", "dd"];
 const LINK_TAGS = ["a"];
 const SPAN_TAGS = ["span"];
-
 const MATH_TAGS = ["math"];
 const CODE_TAGS = ["code"];
+
+const ITEM_TAGS = ["li", "dd", "dt"];
 
 const ATOM_TAGS = [].concat(
     HEADER_TAGS,
@@ -788,8 +789,7 @@ function compare_element_level(element1, element2) {
     // +1: level of element1 < element2
     //  0: level of element1 = element2
     let para_tags = ["p", "table", "pre", "img", "blockquote", "math", "code"];
-    let item_tags = ["li", "dd", "dt"];
-    let tag_ranks = [...HEADER_TAGS, para_tags, item_tags];
+    let tag_ranks = [...HEADER_TAGS, para_tags, ITEM_TAGS];
 
     let tag1 = get_tag(element1);
     let tag2 = get_tag(element2);
@@ -798,11 +798,11 @@ function compare_element_level(element1, element2) {
     let rank2 = tag_ranks.findIndex((tags) => tags.includes(tag2));
 
     // add extra depth for item tags
-    if (item_tags.includes(tag1)) {
+    if (ITEM_TAGS.includes(tag1)) {
         let depth1 = depth_of_li(element1);
         rank1 = rank1 + depth1 - 1;
     }
-    if (item_tags.includes(tag2)) {
+    if (ITEM_TAGS.includes(tag2)) {
         let depth2 = depth_of_li(element2);
         rank2 = rank2 + depth2 - 1;
     }
@@ -905,7 +905,6 @@ function get_parents_by_depth({
         element.getAttribute("airead-level-rel")
     );
     let tag = get_tag(element);
-    let item_tags = ["li", "dd", "dt"];
     for (let i = element_index - 1; i >= 0; i--) {
         let sibling = element_list[i];
         let sibling_rel_level = parseFloat(
@@ -931,8 +930,8 @@ function get_parents_by_depth({
 
             if (
                 stop_at_first_non_li_for_li &&
-                item_tags.includes(tag) &&
-                !item_tags.includes(get_tag(sibling)) &&
+                ITEM_TAGS.includes(tag) &&
+                !ITEM_TAGS.includes(get_tag(sibling)) &&
                 level_diff === depth
             ) {
                 break;
@@ -1012,40 +1011,32 @@ class ChatUserInput {
             this.user_input_group.parentNode.querySelector(".pure-element");
         return current_pure_element;
     }
-    get_auto_more_siblings() {
+    get_auto_more_siblings(depth = 1.5) {
         let siblings = [];
         let element = this.get_current_pure_element();
+        let parent_siblings = get_parents_by_depth({
+            element: element,
+            element_list: window.pure_elements,
+            depth: depth,
+            stop_at_first_non_li_for_li: true,
+        });
+        let children_siblings;
         if (is_header(element)) {
-            let parent_siblings = get_parents_by_level_diff({
+            children_siblings = get_children_by_depth({
                 element: element,
                 element_list: window.pure_elements,
-                rel_level_diff: 2,
-                include_parent_children: false,
-                stop_at_first_non_li_for_li: true,
+                depth: depth,
+                include_same_depth: false,
             });
-            let children_siblings = get_children_by_level_diff({
-                element: element,
-                element_list: window.pure_elements,
-                rel_level_diff: 2,
-                include_same_level: false,
-            });
-            siblings = [...parent_siblings, ...children_siblings];
         } else {
-            let parent_siblings = get_parents_by_level_diff({
+            children_siblings = get_children_by_depth({
                 element: element,
                 element_list: window.pure_elements,
-                rel_level_diff: 2,
-                include_parent_children: false,
-                stop_at_first_non_li_for_li: true,
+                depth: depth,
+                include_same_depth: true,
             });
-            let children_siblings = get_children_by_level_diff({
-                element: element,
-                element_list: window.pure_elements,
-                rel_level_diff: 2,
-                include_same_level: true,
-            });
-            siblings = [...parent_siblings, ...children_siblings];
         }
+        siblings = [...parent_siblings, ...children_siblings];
         return siblings;
     }
     get_last_assistant_chat_message_element() {
