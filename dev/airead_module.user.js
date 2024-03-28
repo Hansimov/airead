@@ -1028,6 +1028,16 @@ function get_auto_more_siblings({ element, depth = 1.5 } = {}) {
     return siblings;
 }
 
+function get_more_siblings(element, para_options = "more_paras_auto") {
+    if (para_options === "more_paras_auto") {
+        return get_auto_more_siblings({
+            element: element,
+        });
+    } else {
+        return [];
+    }
+}
+
 function draw_leader_line(element1, element2) {
     let leader_line = new LeaderLine(element1, element2, {
         startSocket: "right",
@@ -1044,36 +1054,17 @@ function remove_leader_lines() {
         line.remove();
     }
 }
-function highlight_siblings({ element, para_option = "more_paras_auto" } = {}) {
-    let siblings = [];
-    if (para_option === "more_paras_auto") {
-        siblings = get_auto_more_siblings({
-            element: element,
-        });
+function highlight_siblings({ element, siblings = [] } = {}) {
         for (let sibling of siblings) {
             sibling.classList.add("airead-element-sibling-selected");
         }
         draw_leader_line(element, siblings[0]);
         draw_leader_line(element, siblings[siblings.length - 1]);
-    } else if (para_option === "more_paras_manual") {
-    } else {
-    }
     element.classList.add("airead-element-selected");
 }
-function de_highlight_siblings({
-    element,
-    para_option = "more_paras_auto",
-} = {}) {
-    let siblings = [];
-    if (para_option === "more_paras_auto") {
-        siblings = get_auto_more_siblings({
-            element: element,
-        });
+function de_highlight_siblings({ element, siblings = [] } = {}) {
         for (let sibling of siblings) {
             sibling.classList.remove("airead-element-sibling-selected");
-        }
-    } else if (para_option === "more_paras_manual") {
-    } else {
     }
     element.classList.remove("airead-element-selected");
     remove_leader_lines();
@@ -1131,6 +1122,7 @@ class ChatUserInput {
     }
     bind_options() {
         let self = this;
+        let element = self.get_current_pure_element();
         function add_option_html(para_options_select) {
             if (para_options_select.value === "more_paras_manual") {
                 let more_para_select_option_html = `&nbsp;:&nbsp;
@@ -1150,15 +1142,18 @@ class ChatUserInput {
                 );
             } else if (para_options_select.value === "more_paras_auto") {
                 remove_siblings(para_options_select);
+                let siblings = get_auto_more_siblings({
+                    element: element,
+                });
                 highlight_siblings({
-                    element: self.get_current_pure_element(),
-                    para_option: "more_paras_auto",
+                    element: element,
+                    siblings: siblings,
                 });
             } else if (para_options_select.value === "only_this_para") {
                 remove_siblings(para_options_select);
                 de_highlight_siblings({
-                    element: self.get_current_pure_element(),
-                    para_option: "more_paras_auto",
+                    element: element,
+                    siblings: [],
                 });
             } else {
                 remove_siblings(para_options_select);
@@ -1421,7 +1416,10 @@ class ToolButtonGroup {
                 if (para_options_select) {
                     highlight_siblings({
                         element: element,
-                        para_option: para_options_select.value,
+                        siblings: get_more_siblings(
+                            element,
+                            para_options_select.value
+                        ),
                     });
                 }
             } else if (chat_button_text === "hide") {
@@ -1444,7 +1442,10 @@ class ToolButtonGroup {
                 );
                 de_highlight_siblings({
                     element: element,
-                    para_option: para_options_select.value,
+                    siblings: get_more_siblings(
+                        element,
+                        para_options_select.value
+                    ),
                 });
             } else {
             }
