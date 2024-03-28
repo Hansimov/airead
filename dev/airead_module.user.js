@@ -48,12 +48,15 @@ function require_modules() {
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css";
     let font_awesome_v4_css =
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/v4-shims.min.css";
+    let leader_line_js =
+        "https://cdnjs.cloudflare.com/ajax/libs/leader-line/1.0.3/leader-line.min.js";
     return Promise.all([
         require_module(jquery_js),
         require_module(bootstrap_js),
         require_module(bootstrap_css),
         require_module(font_awesome_css),
         require_module(font_awesome_v4_css),
+        require_module(leader_line_js),
     ]);
 }
 
@@ -721,6 +724,10 @@ const AIREAD_CSS = `
     background-color: transparent;
     font-size: 32px;
 }
+
+.leader-line {
+    z-index: 950;
+}
 `;
 
 function apply_css() {
@@ -1020,6 +1027,23 @@ function get_auto_more_siblings({ element, depth = 1.5 } = {}) {
     siblings = [...parent_siblings, ...children_siblings];
     return siblings;
 }
+
+function draw_leader_line(element1, element2) {
+    let leader_line = new LeaderLine(element1, element2, {
+        startSocket: "right",
+        endSocket: "right",
+        path: "grid",
+        size: 3,
+        color: "LightSalmon",
+    });
+    return leader_line;
+}
+function remove_leader_lines() {
+    let lines = document.querySelectorAll("svg.leader-line");
+    for (let line of lines) {
+        line.remove();
+    }
+}
 function highlight_siblings({ element, para_option = "more_paras_auto" } = {}) {
     let siblings = [];
     if (para_option === "more_paras_auto") {
@@ -1029,6 +1053,8 @@ function highlight_siblings({ element, para_option = "more_paras_auto" } = {}) {
         for (let sibling of siblings) {
             sibling.classList.add("airead-element-sibling-selected");
         }
+        draw_leader_line(element, siblings[0]);
+        draw_leader_line(element, siblings[siblings.length - 1]);
     } else if (para_option === "more_paras_manual") {
     } else {
     }
@@ -1050,6 +1076,7 @@ function de_highlight_siblings({
     } else {
     }
     element.classList.remove("airead-element-selected");
+    remove_leader_lines();
 }
 
 class ChatUserInput {
