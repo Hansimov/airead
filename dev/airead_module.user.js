@@ -630,7 +630,7 @@ const AIREAD_CSS = `
 .airead-element-selected {
     border-radius: 4px;
     box-shadow: 0px 0px 4px gray !important;
-    background-color: HoneyDew !important;
+    background-color: AliceBlue !important;
 }
 .airead-element-sibling-selected {
     border-radius: 4px;
@@ -1032,9 +1032,9 @@ function get_auto_more_siblings({
     if (return_parts) {
         return [parent_siblings, children_siblings];
     } else {
-    siblings = [...parent_siblings, ...children_siblings];
-    return siblings;
-}
+        siblings = [...parent_siblings, ...children_siblings];
+        return siblings;
+    }
 }
 
 function get_more_siblings({
@@ -1050,8 +1050,8 @@ function get_more_siblings({
     } else {
         if (return_parts) {
             return [[], []];
-    } else {
-        return [];
+        } else {
+            return [];
         }
     }
 }
@@ -1073,16 +1073,16 @@ function remove_leader_lines() {
     }
 }
 function highlight_siblings({ element, siblings = [] } = {}) {
-        for (let sibling of siblings) {
-            sibling.classList.add("airead-element-sibling-selected");
-        }
-        draw_leader_line(element, siblings[0]);
-        draw_leader_line(element, siblings[siblings.length - 1]);
+    for (let sibling of siblings) {
+        sibling.classList.add("airead-element-sibling-selected");
+    }
+    draw_leader_line(element, siblings[0]);
+    draw_leader_line(element, siblings[siblings.length - 1]);
     element.classList.add("airead-element-selected");
 }
 function de_highlight_siblings({ element, siblings = [] } = {}) {
-        for (let sibling of siblings) {
-            sibling.classList.remove("airead-element-sibling-selected");
+    for (let sibling of siblings) {
+        sibling.classList.remove("airead-element-sibling-selected");
     }
     element.classList.remove("airead-element-selected");
     remove_leader_lines();
@@ -1137,6 +1137,28 @@ class ChatUserInput {
             console.log("[Finished]");
         }
         return "";
+    }
+    get_selected_elements_context() {
+        let element = this.get_current_pure_element();
+        let para_options_select = this.user_input_group.querySelector("select");
+        let parents_and_children_siblings = get_more_siblings({
+            element: this.get_current_pure_element(),
+            para_options: para_options_select.value,
+            return_parts: true,
+        });
+        let parent_siblings = parents_and_children_siblings[0];
+        let children_siblings = parents_and_children_siblings[1];
+        let context = "";
+        let selected_elements = [
+            ...parent_siblings,
+            element,
+            ...children_siblings,
+        ];
+        for (let selected_element of selected_elements) {
+            let element_text = get_element_text(selected_element);
+            context += element_text + "\n\n";
+        }
+        return context;
     }
     bind_options() {
         let self = this;
@@ -1220,9 +1242,7 @@ class ChatUserInput {
                 assistant_chat_message.spawn(parent_element);
                 let last_assistant_chat_message_element =
                     self.get_last_assistant_chat_message_element();
-
-                let context = get_element_text(this.get_current_pure_element());
-                context = context.replace(/\s+/g, " ");
+                let context = self.get_selected_elements_context();
                 chat_completions({
                     messages: [
                         {
