@@ -1,6 +1,21 @@
 # AIRead
 An AI-assisted reading script in browsers.
 
+## Demos
+
+Latest updates and demos would be posted on Bilibili:
+
+- v0.1 (2024-03-22):
+  - https://www.bilibili.com/video/BV1DA4m1P741
+  - First working version
+- v0.3 (2024-03-24):
+  - https://www.bilibili.com/video/BV1LC411t7LK
+  - Extract equations and references in paragraphs of ar5iv HTML
+- v0.4 (2024-03-29):
+  - https://www.bilibili.com/video/BV1Fm411C74T
+  - Auto select longer and more relevant contexts by the hierarchy of doc tree nodes
+
+
 ## For Users
 
 For most users, click and install is all you need:
