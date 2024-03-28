@@ -727,6 +727,7 @@ const AIREAD_CSS = `
 
 .leader-line {
     z-index: 950;
+    background-color: transparent;
 }
 `;
 
@@ -1003,7 +1004,11 @@ function get_children_by_depth({
     return children;
 }
 
-function get_auto_more_siblings({ element, depth = 1.5 } = {}) {
+function get_auto_more_siblings({
+    element,
+    depth = 1.5,
+    return_parts = false,
+} = {}) {
     let siblings = [];
     let parent_siblings = get_parents_by_depth({
         element: element,
@@ -1024,17 +1029,30 @@ function get_auto_more_siblings({ element, depth = 1.5 } = {}) {
             include_same_depth: true,
         });
     }
+    if (return_parts) {
+        return [parent_siblings, children_siblings];
+    } else {
     siblings = [...parent_siblings, ...children_siblings];
     return siblings;
 }
+}
 
-function get_more_siblings(element, para_options = "more_paras_auto") {
+function get_more_siblings({
+    element,
+    para_options = "more_paras_auto",
+    return_parts = false,
+} = {}) {
     if (para_options === "more_paras_auto") {
         return get_auto_more_siblings({
             element: element,
+            return_parts: return_parts,
         });
     } else {
+        if (return_parts) {
+            return [[], []];
+    } else {
         return [];
+        }
     }
 }
 
@@ -1142,8 +1160,9 @@ class ChatUserInput {
                 );
             } else if (para_options_select.value === "more_paras_auto") {
                 remove_siblings(para_options_select);
-                let siblings = get_auto_more_siblings({
+                let siblings = get_more_siblings({
                     element: element,
+                    para_options: "more_paras_auto",
                 });
                 highlight_siblings({
                     element: element,
@@ -1151,16 +1170,20 @@ class ChatUserInput {
                 });
             } else if (para_options_select.value === "only_this_para") {
                 remove_siblings(para_options_select);
+                let siblings = get_more_siblings({
+                    element: element,
+                    para_options: "more_paras_auto",
+                });
                 de_highlight_siblings({
                     element: element,
-                    siblings: [],
+                    siblings: siblings,
                 });
             } else {
                 remove_siblings(para_options_select);
             }
         }
         let para_options_select = self.user_input_group.querySelector("select");
-        // add_option_html(para_options_select);
+        add_option_html(para_options_select);
         para_options_select.addEventListener("change", function () {
             add_option_html(this);
         });
@@ -1390,6 +1413,9 @@ class ToolButtonGroup {
 
         this.chat_button.onclick = () => {
             let chat_button_text = this.chat_button.innerHTML.toLowerCase();
+            let para_options_select = element.parentNode.querySelector(
+                ".airead-chat-user-input-option-select-para"
+            );
             if (chat_button_text === "chat") {
                 // create new ChatUserInput if last sibling of element is not user_input
                 let last_child = element.parentNode.lastChild;
@@ -1409,17 +1435,14 @@ class ToolButtonGroup {
                     chat_message.style.display = "block";
                 }
                 this.chat_button.innerHTML = "Hide";
-
-                let para_options_select = element.parentNode.querySelector(
-                    ".airead-chat-user-input-option-select-para"
-                );
                 if (para_options_select) {
+                    let siblings = get_more_siblings({
+                        element: element,
+                        para_options: "more_paras_auto",
+                    });
                     highlight_siblings({
                         element: element,
-                        siblings: get_more_siblings(
-                            element,
-                            para_options_select.value
-                        ),
+                        siblings: siblings,
                     });
                 }
             } else if (chat_button_text === "hide") {
@@ -1436,16 +1459,13 @@ class ToolButtonGroup {
                     chat_message.style.display = "none";
                 }
                 this.chat_button.innerHTML = "Chat";
-
-                let para_options_select = element.parentNode.querySelector(
-                    ".airead-chat-user-input-option-select-para"
-                );
+                let siblings = get_more_siblings({
+                    element: element,
+                    para_options: "more_paras_auto",
+                });
                 de_highlight_siblings({
                     element: element,
-                    siblings: get_more_siblings(
-                        element,
-                        para_options_select.value
-                    ),
+                    siblings: siblings,
                 });
             } else {
             }
