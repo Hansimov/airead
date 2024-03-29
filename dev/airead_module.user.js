@@ -87,6 +87,7 @@ const MATH_TAGS = ["math"];
 const CODE_TAGS = ["code"];
 
 const ITEM_TAGS = ["li", "dd", "dt"];
+const ENV_TAGS = ["table", "pre", "img", "math", "code", "figcaption"];
 
 const ATOM_TAGS = [].concat(
     HEADER_TAGS,
@@ -778,6 +779,9 @@ function is_header(element) {
 function is_item(element) {
     return ITEM_TAGS.includes(get_tag(element));
 }
+function is_env(element) {
+    return ENV_TAGS.includes(get_tag(element));
+}
 function get_header_level(element) {
     return parseInt(element.tagName.slice(1));
 }
@@ -805,8 +809,7 @@ function compare_element_level(element1, element2) {
     // +1: level of element1 < element2
     //  0: level of element1 = element2
     let para_tags = ["p", "blockquote"];
-    let env_tags = ["table", "pre", "img", "math", "code", "figcaption"];
-    let tag_ranks = [...HEADER_TAGS, para_tags, env_tags, ITEM_TAGS];
+    let tag_ranks = [...HEADER_TAGS, para_tags, ENV_TAGS, ITEM_TAGS];
 
     let tag1 = get_tag(element1);
     let tag2 = get_tag(element2);
@@ -859,7 +862,7 @@ function set_pure_element_levels() {
 function set_pure_element_rel_levels() {
     let element;
     let prev_element;
-    let level;
+    let level = 0;
     for (let i = 0; i < window.pure_elements.length; i++) {
         element = window.pure_elements[i];
         if (is_header(element)) {
@@ -897,7 +900,7 @@ function set_pure_element_rel_levels() {
                         parseFloat(
                             prev_element.getAttribute("airead-level-rel")
                         ) + 0.5;
-                    if (is_item(element)) {
+                    if (is_item(element) || is_env(element)) {
                         level += 1;
                     }
                 } else {
@@ -918,6 +921,8 @@ function get_parents_by_depth({
     element_list = window.pure_elements,
     depth = 0,
     stop_at_first_non_li_for_li = true,
+    stop_when_deeper = true,
+    stop_at_first_top_parent = true,
     tolerant_depth = 1,
 } = {}) {
     let parents = [];
@@ -946,9 +951,17 @@ function get_parents_by_depth({
         } else if (level_diff + tolerant_depth < 0) {
             // this sibling is too deep, but still not reach the top parent, continue
             // tolerant_depth means allowed depth diff that sibling is greater than element
-            continue;
+            if (stop_when_deeper) {
+                break;
+            } else {
+                continue;
+            }
         } else {
             parents.push(sibling);
+
+            if (stop_at_first_top_parent && level_diff === depth) {
+                break;
+            }
 
             if (
                 stop_at_first_non_li_for_li &&
@@ -1010,12 +1023,24 @@ function get_auto_more_siblings({
     return_parts = false,
 } = {}) {
     let siblings = [];
+
+    let parent_depth;
+    if (is_item(element) || is_env(element)) {
+        parent_depth = 1.5;
+    } else if (is_header(element)) {
+        parent_depth = 1;
+    } else {
+        parent_depth = 0.5;
+    }
     let parent_siblings = get_parents_by_depth({
         element: element,
-        depth: depth,
+        depth: parent_depth,
         stop_at_first_non_li_for_li: true,
+        tolerant_depth: 1,
     });
+
     let children_siblings;
+
     if (is_header(element)) {
         children_siblings = get_children_by_depth({
             element: element,
