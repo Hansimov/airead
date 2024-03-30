@@ -48,6 +48,8 @@ function require_modules() {
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css";
     let font_awesome_v4_css =
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/v4-shims.min.css";
+    let showdown_js =
+        "https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js";
     let leader_line_js =
         "https://cdnjs.cloudflare.com/ajax/libs/leader-line/1.0.3/leader-line.min.js";
     return Promise.all([
@@ -56,6 +58,7 @@ function require_modules() {
         require_module(bootstrap_css),
         require_module(font_awesome_css),
         require_module(font_awesome_v4_css),
+        require_module(showdown_js),
         require_module(leader_line_js),
     ]);
 }
@@ -1112,6 +1115,11 @@ function de_highlight_siblings({ element, siblings = [] } = {}) {
     remove_leader_lines();
 }
 
+function md2html(text) {
+    let converter = new showdown.Converter();
+    return converter.makeHtml(text);
+}
+
 class ChatUserInput {
     constructor() {
         this.last_assistant_chat_message_element = null;
@@ -1152,14 +1160,20 @@ class ChatUserInput {
         }
         return last_assistant_chat_message_element;
     }
+    update_last_assistant_chat_message_element(delta_content) {
+        let element = this.last_assistant_chat_message_element;
+        let last_content = element.dataset.content || "";
+        element.dataset.content = last_content + delta_content;
+        element.innerHTML = md2html(element.dataset.content);
+    }
+
     on_chunk(chunk) {
         let delta = chunk.delta;
         if (delta.role) {
             // console.log("role:", delta.role);
         }
         if (delta.content) {
-            this.last_assistant_chat_message_element.textContent +=
-                delta.content;
+            this.update_last_assistant_chat_message_element(delta.content);
             return delta.content;
         }
         if (chunk.finish_reason === "stop") {
