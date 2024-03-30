@@ -489,7 +489,7 @@ function get_element_text(element) {
 const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
 const LLM_API_KEY = "sk-xxxx";
 
-async function process_stream_response(response, update_element, on_chunk) {
+async function process_stream_response(response, on_chunk) {
     const decoder = new TextDecoder("utf-8");
     function stringify_stream_bytes(bytes) {
         return decoder.decode(bytes);
@@ -526,7 +526,6 @@ async function process_stream_response(response, update_element, on_chunk) {
             let chunk = json_chunk.choices[0];
             if (on_chunk) {
                 content += on_chunk(chunk);
-                update_element.textContent = content;
             }
         }
     }
@@ -1114,7 +1113,10 @@ function de_highlight_siblings({ element, siblings = [] } = {}) {
 }
 
 class ChatUserInput {
-    constructor() {}
+    constructor() {
+        this.last_assistant_chat_message_element = null;
+        this.on_chunk = this.on_chunk.bind(this);
+    }
     construct_html() {
         let html = `
             <div class="my-2 row no-gutters airead-chat-user-input-group">
@@ -1156,6 +1158,8 @@ class ChatUserInput {
             // console.log("role:", delta.role);
         }
         if (delta.content) {
+            this.last_assistant_chat_message_element.textContent +=
+                delta.content;
             return delta.content;
         }
         if (chunk.finish_reason === "stop") {
@@ -1264,9 +1268,9 @@ class ChatUserInput {
                     role: "assistant",
                     content: "",
                 });
-                assistant_chat_message.spawn(parent_element);
-                let last_assistant_chat_message_element =
-                    self.get_last_assistant_chat_message_element();
+                self.last_assistant_chat_message_element =
+                    assistant_chat_message.spawn(parent_element);
+                console.log(self.last_assistant_chat_message_element);
                 let context = self.get_selected_elements_context();
                 chat_completions({
                     messages: [
@@ -1285,13 +1289,11 @@ class ChatUserInput {
                 }).then((response) => {
                     console.log(context);
                     console.log(prompt);
-                    process_stream_response(
-                        response,
-                        last_assistant_chat_message_element,
-                        self.on_chunk
-                    ).then((content) => {
-                        console.log(content);
-                    });
+                    process_stream_response(response, self.on_chunk).then(
+                        (content) => {
+                            console.log(content);
+                        }
+                    );
                 });
             }
         });
