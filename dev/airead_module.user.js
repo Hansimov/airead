@@ -50,6 +50,8 @@ function require_modules() {
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/v4-shims.min.css";
     let showdown_js =
         "https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js";
+    let showdown_katex_js =
+        "https://cdn.jsdelivr.net/npm/showdown-katex@0.8.0/dist/showdown-katex.min.js";
     let leader_line_js =
         "https://cdnjs.cloudflare.com/ajax/libs/leader-line/1.0.3/leader-line.min.js";
     return Promise.all([
@@ -59,6 +61,7 @@ function require_modules() {
         require_module(font_awesome_css),
         require_module(font_awesome_v4_css),
         require_module(showdown_js),
+        require_module(showdown_katex_js),
         require_module(leader_line_js),
     ]);
 }
@@ -359,7 +362,7 @@ class PureElementsSelector {
 
 const LATEX_FORMAT_MAP = {
     "\\\\math((bf)|(bb))": "",
-    "\\\\operatorname": "",
+    // "\\\\operatorname": "",
 };
 const WHITESPACE_MAP = {
     "\\s+": " ",
@@ -731,6 +734,14 @@ const AIREAD_CSS = `
 .leader-line {
     z-index: 950;
     background-color: transparent;
+}
+
+[aria-hidden="true"] {
+    display: none;
+}
+
+.katex-mathml {
+    color: DodgerBlue !important;
 }
 `;
 
@@ -1116,7 +1127,22 @@ function de_highlight_siblings({ element, siblings = [] } = {}) {
 }
 
 function md2html(text) {
-    let converter = new showdown.Converter();
+    let converter = new showdown.Converter({
+        simpleLineBreaks: false,
+        tables: true,
+        literalMidWordUnderscores: true,
+        underline: true,
+        extensions: [
+            showdownKatex({
+                displayMode: false,
+                delimiters: [
+                    { left: "$", right: "$", display: false },
+                    { left: "$$", right: "$$", display: true },
+                ],
+            }),
+        ],
+    });
+    converter.setFlavor("github");
     return converter.makeHtml(text);
 }
 
