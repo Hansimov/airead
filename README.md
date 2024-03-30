@@ -1,5 +1,8 @@
 # AIRead
+
 An AI-assisted reading script in browsers.
+
+![](https://img.shields.io/github/v/release/hansimov/airead?label=AIRead&color=blue&cacheSeconds=60)
 
 ## Demos
 
