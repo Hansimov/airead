@@ -48,6 +48,10 @@ function require_modules() {
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css";
     let font_awesome_v4_css =
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/v4-shims.min.css";
+    let showdown_js =
+        "https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js";
+    let showdown_katex_js =
+        "https://cdn.jsdelivr.net/npm/showdown-katex@0.8.0/dist/showdown-katex.min.js";
     let leader_line_js =
         "https://cdnjs.cloudflare.com/ajax/libs/leader-line/1.0.3/leader-line.min.js";
     return Promise.all([
@@ -56,6 +60,8 @@ function require_modules() {
         require_module(bootstrap_css),
         require_module(font_awesome_css),
         require_module(font_awesome_v4_css),
+        require_module(showdown_js),
+        require_module(showdown_katex_js),
         require_module(leader_line_js),
     ]);
 }
@@ -87,6 +93,7 @@ const MATH_TAGS = ["math"];
 const CODE_TAGS = ["code"];
 
 const ITEM_TAGS = ["li", "dd", "dt"];
+const ENV_TAGS = ["table", "pre", "img", "math", "code", "figcaption"];
 
 const ATOM_TAGS = [].concat(
     HEADER_TAGS,
@@ -355,7 +362,7 @@ class PureElementsSelector {
 
 const LATEX_FORMAT_MAP = {
     "\\\\math((bf)|(bb))": "",
-    "\\\\operatorname": "",
+    // "\\\\operatorname": "",
 };
 const WHITESPACE_MAP = {
     "\\s+": " ",
@@ -488,7 +495,7 @@ function get_element_text(element) {
 const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
 const LLM_API_KEY = "sk-xxxx";
 
-async function process_stream_response(response, update_element, on_chunk) {
+async function process_stream_response(response, on_chunk) {
     const decoder = new TextDecoder("utf-8");
     function stringify_stream_bytes(bytes) {
         return decoder.decode(bytes);
@@ -525,7 +532,6 @@ async function process_stream_response(response, update_element, on_chunk) {
             let chunk = json_chunk.choices[0];
             if (on_chunk) {
                 content += on_chunk(chunk);
-                update_element.textContent = content;
             }
         }
     }
@@ -729,6 +735,14 @@ const AIREAD_CSS = `
     z-index: 950;
     background-color: transparent;
 }
+
+[aria-hidden="true"] {
+    display: none;
+}
+
+.katex-mathml {
+    color: DodgerBlue !important;
+}
 `;
 
 function apply_css() {
@@ -778,6 +792,9 @@ function is_header(element) {
 function is_item(element) {
     return ITEM_TAGS.includes(get_tag(element));
 }
+function is_env(element) {
+    return ENV_TAGS.includes(get_tag(element));
+}
 function get_header_level(element) {
     return parseInt(element.tagName.slice(1));
 }
@@ -805,8 +822,7 @@ function compare_element_level(element1, element2) {
     // +1: level of element1 < element2
     //  0: level of element1 = element2
     let para_tags = ["p", "blockquote"];
-    let env_tags = ["table", "pre", "img", "math", "code", "figcaption"];
-    let tag_ranks = [...HEADER_TAGS, para_tags, env_tags, ITEM_TAGS];
+    let tag_ranks = [...HEADER_TAGS, para_tags, ENV_TAGS, ITEM_TAGS];
 
     let tag1 = get_tag(element1);
     let tag2 = get_tag(element2);
@@ -859,7 +875,7 @@ function set_pure_element_levels() {
 function set_pure_element_rel_levels() {
     let element;
     let prev_element;
-    let level;
+    let level = 0;
     for (let i = 0; i < window.pure_elements.length; i++) {
         element = window.pure_elements[i];
         if (is_header(element)) {
@@ -897,7 +913,7 @@ function set_pure_element_rel_levels() {
                         parseFloat(
                             prev_element.getAttribute("airead-level-rel")
                         ) + 0.5;
-                    if (is_item(element)) {
+                    if (is_item(element) || is_env(element)) {
                         level += 1;
                     }
                 } else {
@@ -918,6 +934,8 @@ function get_parents_by_depth({
     element_list = window.pure_elements,
     depth = 0,
     stop_at_first_non_li_for_li = true,
+    stop_when_deeper = true,
+    stop_at_first_top_parent = true,
     tolerant_depth = 1,
 } = {}) {
     let parents = [];
@@ -946,9 +964,17 @@ function get_parents_by_depth({
         } else if (level_diff + tolerant_depth < 0) {
             // this sibling is too deep, but still not reach the top parent, continue
             // tolerant_depth means allowed depth diff that sibling is greater than element
-            continue;
+            if (stop_when_deeper) {
+                break;
+            } else {
+                continue;
+            }
         } else {
             parents.push(sibling);
+
+            if (stop_at_first_top_parent && level_diff === depth) {
+                break;
+            }
 
             if (
                 stop_at_first_non_li_for_li &&
@@ -1010,12 +1036,24 @@ function get_auto_more_siblings({
     return_parts = false,
 } = {}) {
     let siblings = [];
+
+    let parent_depth;
+    if (is_item(element) || is_env(element)) {
+        parent_depth = 1.5;
+    } else if (is_header(element)) {
+        parent_depth = 1;
+    } else {
+        parent_depth = 0.5;
+    }
     let parent_siblings = get_parents_by_depth({
         element: element,
-        depth: depth,
+        depth: parent_depth,
         stop_at_first_non_li_for_li: true,
+        tolerant_depth: 1,
     });
+
     let children_siblings;
+
     if (is_header(element)) {
         children_siblings = get_children_by_depth({
             element: element,
@@ -1088,8 +1126,31 @@ function de_highlight_siblings({ element, siblings = [] } = {}) {
     remove_leader_lines();
 }
 
+function md2html(text) {
+    let converter = new showdown.Converter({
+        simpleLineBreaks: false,
+        tables: true,
+        literalMidWordUnderscores: true,
+        underline: true,
+        extensions: [
+            showdownKatex({
+                displayMode: false,
+                delimiters: [
+                    { left: "$", right: "$", display: false },
+                    { left: "$$", right: "$$", display: true },
+                ],
+            }),
+        ],
+    });
+    converter.setFlavor("github");
+    return converter.makeHtml(text);
+}
+
 class ChatUserInput {
-    constructor() {}
+    constructor() {
+        this.last_assistant_chat_message_element = null;
+        this.on_chunk = this.on_chunk.bind(this);
+    }
     construct_html() {
         let html = `
             <div class="my-2 row no-gutters airead-chat-user-input-group">
@@ -1125,12 +1186,20 @@ class ChatUserInput {
         }
         return last_assistant_chat_message_element;
     }
+    update_last_assistant_chat_message_element(delta_content) {
+        let element = this.last_assistant_chat_message_element;
+        let last_content = element.dataset.content || "";
+        element.dataset.content = last_content + delta_content;
+        element.innerHTML = md2html(element.dataset.content);
+    }
+
     on_chunk(chunk) {
         let delta = chunk.delta;
         if (delta.role) {
             // console.log("role:", delta.role);
         }
         if (delta.content) {
+            this.update_last_assistant_chat_message_element(delta.content);
             return delta.content;
         }
         if (chunk.finish_reason === "stop") {
@@ -1239,9 +1308,9 @@ class ChatUserInput {
                     role: "assistant",
                     content: "",
                 });
-                assistant_chat_message.spawn(parent_element);
-                let last_assistant_chat_message_element =
-                    self.get_last_assistant_chat_message_element();
+                self.last_assistant_chat_message_element =
+                    assistant_chat_message.spawn(parent_element);
+                console.log(self.last_assistant_chat_message_element);
                 let context = self.get_selected_elements_context();
                 chat_completions({
                     messages: [
@@ -1260,13 +1329,11 @@ class ChatUserInput {
                 }).then((response) => {
                     console.log(context);
                     console.log(prompt);
-                    process_stream_response(
-                        response,
-                        last_assistant_chat_message_element,
-                        self.on_chunk
-                    ).then((content) => {
-                        console.log(content);
-                    });
+                    process_stream_response(response, self.on_chunk).then(
+                        (content) => {
+                            console.log(content);
+                        }
+                    );
                 });
             }
         });
