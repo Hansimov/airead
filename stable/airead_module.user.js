@@ -94,6 +94,7 @@ const CODE_TAGS = ["code"];
 
 const ITEM_TAGS = ["li", "dd", "dt"];
 const ENV_TAGS = ["table", "pre", "img", "math", "code", "figcaption"];
+const T_TAGS = ["tbody", "tr", "th", "td"];
 
 const ATOM_TAGS = [].concat(
     HEADER_TAGS,
@@ -362,6 +363,7 @@ class PureElementsSelector {
 
 const LATEX_FORMAT_MAP = {
     "\\\\math((bf)|(bb))": "",
+    "\\\\textsc": "\\text",
     // "\\\\operatorname": "",
 };
 const WHITESPACE_MAP = {
@@ -411,6 +413,7 @@ class ElementContentConverter {
                 math_tag.replaceWith(latex_element);
             }
         }
+        return element;
     }
     replace_ref_with_content({ element = null, is_replace = false } = {}) {
         if (!element) {
@@ -445,6 +448,25 @@ class ElementContentConverter {
             "\n\nReferences:\n\n" + ref_contents_list.join("\n\n");
         return ref_contents_text;
     }
+    table_to_str(element = null) {
+        if (!element) {
+            element = this.element;
+        }
+        while (element.attributes.length > 0) {
+            element.removeAttribute(element.attributes[0].name);
+        }
+        let cells = element.querySelectorAll("*");
+        cells.forEach((cell) => {
+            while (cell.attributes.length > 0) {
+                cell.removeAttribute(cell.attributes[0].name);
+            }
+            if (!T_TAGS.includes(get_tag(cell))) {
+                let text = cell.textContent;
+                cell.replaceWith(document.createTextNode(text));
+            }
+        });
+        return element.outerHTML;
+    }
     remove_whitespaces(text) {
         for (let regex in WHITESPACE_MAP) {
             let re = new RegExp(regex, "gm");
@@ -452,9 +474,9 @@ class ElementContentConverter {
         }
         return text;
     }
-    get_text({ with_refs = true } = {}) {
+    get_text({ with_refs = true, keep_table_tag = true } = {}) {
         let element_copy = this.element.cloneNode(true);
-        this.replace_math_with_latex({
+        element_copy = this.replace_math_with_latex({
             element: element_copy,
             is_replace: true,
         });
@@ -463,7 +485,13 @@ class ElementContentConverter {
             is_replace: true,
         });
 
-        let text = element_copy.textContent;
+        let text;
+        if (get_tag(element_copy) === "table" && keep_table_tag) {
+            text = this.table_to_str(element_copy);
+        } else {
+            text = element_copy.textContent;
+        }
+
         // if ref_contents is not empty, then append ref_contents_text to text
         if (with_refs && Object.keys(ref_contents).length > 0) {
             text = text + this.refs_to_str(ref_contents);
@@ -742,6 +770,11 @@ const AIREAD_CSS = `
 
 .katex-mathml {
     color: DodgerBlue !important;
+}
+
+table, th, td {
+    border: 1px solid LightGray;
+    border-collapse: collapse;
 }
 `;
 
@@ -1130,7 +1163,6 @@ function md2html(text) {
     let converter = new showdown.Converter({
         simpleLineBreaks: false,
         tables: true,
-        literalMidWordUnderscores: true,
         underline: true,
         extensions: [
             showdownKatex({
