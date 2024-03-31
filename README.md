@@ -17,7 +17,9 @@ Latest updates and demos would be posted on Bilibili:
 - v0.4 (2024-03-29):
   - https://www.bilibili.com/video/BV1Fm411C74T
   - Auto select longer and more relevant contexts by the hierarchy of doc tree nodes
-
+- v0.5 (2024-03-31):
+  - https://www.bilibili.com/video/BV1eJ4m1L7z9
+  - Render Markdown and LaTeX formulas
 
 ## For Users
 
