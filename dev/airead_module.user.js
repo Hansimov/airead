@@ -1153,8 +1153,12 @@ function highlight_siblings({ element, siblings = [] } = {}) {
     for (let sibling of siblings) {
         sibling.classList.add("airead-element-sibling-selected");
     }
-    draw_leader_line(element, siblings[0]);
-    draw_leader_line(element, siblings[siblings.length - 1]);
+    try {
+        draw_leader_line(element, siblings[0]);
+        draw_leader_line(element, siblings[siblings.length - 1]);
+    } catch (error) {
+        console.warn(error);
+    }
     element.classList.add("airead-element-selected");
 }
 function de_highlight_siblings({ element, siblings = [] } = {}) {
@@ -1166,22 +1170,29 @@ function de_highlight_siblings({ element, siblings = [] } = {}) {
 }
 
 function md2html(text) {
-    let converter = new showdown.Converter({
-        simpleLineBreaks: false,
-        tables: true,
-        underline: true,
-        extensions: [
-            showdownKatex({
-                displayMode: false,
-                delimiters: [
-                    { left: "$", right: "$", display: false },
-                    { left: "$$", right: "$$", display: true },
-                ],
-            }),
-        ],
-    });
-    converter.setFlavor("github");
-    return converter.makeHtml(text);
+    let converted_text;
+    try {
+        let converter = new showdown.Converter({
+            simpleLineBreaks: false,
+            tables: true,
+            underline: true,
+            extensions: [
+                showdownKatex({
+                    displayMode: false,
+                    delimiters: [
+                        { left: "$", right: "$", display: false },
+                        { left: "$$", right: "$$", display: true },
+                    ],
+                }),
+            ],
+        });
+        converter.setFlavor("github");
+        converted_text = converter.makeHtml(text);
+    } catch (error) {
+        console.warn(error);
+        converted_text = text;
+    }
+    return converted_text;
 }
 
 class ChatUserInput {
