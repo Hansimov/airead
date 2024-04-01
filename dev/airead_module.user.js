@@ -419,7 +419,7 @@ class ElementContentConverter {
         if (!element) {
             element = this.element;
         }
-        let refs = element.querySelectorAll("a[href^='#']");
+        let refs = element.querySelectorAll("a[href^='#bib']");
         let ref_contents = {};
         for (let ref of refs) {
             let ref_id = ref.getAttribute("href").slice(1);
@@ -932,8 +932,14 @@ function set_pure_element_rel_levels() {
                 let pre_header_rel_level = parseFloat(
                     prev_header_element.getAttribute("airead-level-rel")
                 );
-                if (level - pre_header_rel_level > 1) {
+                let pre_header_abs_level = parseFloat(
+                    prev_header_element.getAttribute("airead-level")
+                );
+                if (level - pre_header_abs_level > 1) {
                     level = pre_header_rel_level + 1.5;
+                } else if (level < pre_header_abs_level) {
+                } else {
+                    level = pre_header_rel_level + level - pre_header_abs_level;
                 }
             }
         } else {
@@ -1020,7 +1026,7 @@ function get_parents_by_depth({
         }
     }
     parents.reverse();
-    console.log(`depth ${depth} parents:`, parents.length);
+    // console.log(`depth ${depth} parents:`, parents.length);
     return parents;
 }
 
@@ -1059,7 +1065,7 @@ function get_children_by_depth({
         }
     }
 
-    console.log(`depth ${depth} children:`, children.length);
+    // console.log(`depth ${depth} children:`, children.length);
     return children;
 }
 
