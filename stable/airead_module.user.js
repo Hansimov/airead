@@ -419,7 +419,7 @@ class ElementContentConverter {
         if (!element) {
             element = this.element;
         }
-        let refs = element.querySelectorAll("a[href^='#']");
+        let refs = element.querySelectorAll("a[href^='#bib']");
         let ref_contents = {};
         for (let ref of refs) {
             let ref_id = ref.getAttribute("href").slice(1);
@@ -522,6 +522,7 @@ function get_element_text(element) {
 
 const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
 const LLM_API_KEY = "sk-xxxx";
+const LLM_MODEL = "nous-mixtral-8x7b";
 
 async function process_stream_response(response, on_chunk) {
     const decoder = new TextDecoder("utf-8");
@@ -566,6 +567,20 @@ async function process_stream_response(response, on_chunk) {
     return content;
 }
 
+function get_llm_endpoint() {
+    let endpoint_widget = document.getElementById("settings-modal-endpoint");
+    return endpoint_widget.value;
+}
+
+function get_llm_api_key() {
+    let api_key_widget = document.getElementById("settings-modal-api-key");
+    return api_key_widget.value;
+}
+function get_llm_model() {
+    let model_widget = document.getElementById("settings-modal-models");
+    return model_widget.value;
+}
+
 function get_llm_models({ endpoint } = {}) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
@@ -588,8 +603,8 @@ function get_llm_models({ endpoint } = {}) {
 
 function chat_completions({
     messages,
-    endpoint = LLM_ENDPOINT,
-    model = "mixtral-8x7b",
+    endpoint = get_llm_endpoint() || LLM_ENDPOINT,
+    model = get_llm_model() || LLM_MODEL,
     max_tokens = -1,
     temperature = 0.5,
     top_p = 0.95,
@@ -932,8 +947,14 @@ function set_pure_element_rel_levels() {
                 let pre_header_rel_level = parseFloat(
                     prev_header_element.getAttribute("airead-level-rel")
                 );
-                if (level - pre_header_rel_level > 1) {
+                let pre_header_abs_level = parseFloat(
+                    prev_header_element.getAttribute("airead-level")
+                );
+                if (level - pre_header_abs_level > 1) {
                     level = pre_header_rel_level + 1.5;
+                } else if (level < pre_header_abs_level) {
+                } else {
+                    level = pre_header_rel_level + level - pre_header_abs_level;
                 }
             }
         } else {
@@ -1020,7 +1041,7 @@ function get_parents_by_depth({
         }
     }
     parents.reverse();
-    console.log(`depth ${depth} parents:`, parents.length);
+    // console.log(`depth ${depth} parents:`, parents.length);
     return parents;
 }
 
@@ -1059,7 +1080,7 @@ function get_children_by_depth({
         }
     }
 
-    console.log(`depth ${depth} children:`, children.length);
+    // console.log(`depth ${depth} children:`, children.length);
     return children;
 }
 
@@ -1147,8 +1168,12 @@ function highlight_siblings({ element, siblings = [] } = {}) {
     for (let sibling of siblings) {
         sibling.classList.add("airead-element-sibling-selected");
     }
-    draw_leader_line(element, siblings[0]);
-    draw_leader_line(element, siblings[siblings.length - 1]);
+    try {
+        draw_leader_line(element, siblings[0]);
+        draw_leader_line(element, siblings[siblings.length - 1]);
+    } catch (error) {
+        console.warn(error);
+    }
     element.classList.add("airead-element-selected");
 }
 function de_highlight_siblings({ element, siblings = [] } = {}) {
@@ -1160,22 +1185,29 @@ function de_highlight_siblings({ element, siblings = [] } = {}) {
 }
 
 function md2html(text) {
-    let converter = new showdown.Converter({
-        simpleLineBreaks: false,
-        tables: true,
-        underline: true,
-        extensions: [
-            showdownKatex({
-                displayMode: false,
-                delimiters: [
-                    { left: "$", right: "$", display: false },
-                    { left: "$$", right: "$$", display: true },
-                ],
-            }),
-        ],
-    });
-    converter.setFlavor("github");
-    return converter.makeHtml(text);
+    let converted_text;
+    try {
+        let converter = new showdown.Converter({
+            simpleLineBreaks: false,
+            tables: true,
+            underline: true,
+            extensions: [
+                showdownKatex({
+                    displayMode: false,
+                    delimiters: [
+                        { left: "$", right: "$", display: false },
+                        { left: "$$", right: "$$", display: true },
+                    ],
+                }),
+            ],
+        });
+        converter.setFlavor("github");
+        converted_text = converter.makeHtml(text);
+    } catch (error) {
+        console.warn(error);
+        converted_text = text;
+    }
+    return converted_text;
 }
 
 class ChatUserInput {
@@ -1684,7 +1716,7 @@ class RangeNumberWidget {
 }
 
 class SettingsModal {
-    constructor({ id = "settings" } = {}) {
+    constructor({ id = "settings-modal" } = {}) {
         this.id = id;
         this.endpoint_id = `${this.id}-endpoint`;
         this.api_key_id = `${this.id}-api-key`;
@@ -1746,8 +1778,7 @@ class SettingsModal {
             max_output_tokens_widget_parent
         );
     }
-    set_endpoint_and_api_key() {
-        // get endpoint and api_key with GM.getValue
+    init_endpoint_and_api_key() {
         Promise.all([
             GM.getValue("airead_llm_endpoint", LLM_ENDPOINT).then(
                 (endpoint) => {
@@ -1758,20 +1789,13 @@ class SettingsModal {
                 $(`#${this.api_key_id}`).val(api_key);
             }),
         ]).then(() => {
-            this.set_models_select();
+            this.init_models_select();
         });
     }
-    save_endpoint_and_api_key() {
+    init_models_select() {
         let endpoint = $(`#${this.endpoint_id}`).val();
         let api_key = $(`#${this.api_key_id}`).val();
-        return Promise.all([
-            GM.setValue("airead_llm_endpoint", endpoint),
-            GM.setValue("airead_llm_api_key", api_key),
-        ]);
-    }
-    set_models_select() {
-        let endpoint = $(`#${this.endpoint_id}`).val();
-        let api_key = $(`#${this.api_key_id}`).val();
+        let self = this;
         if (endpoint) {
             get_llm_models({ endpoint: endpoint }).then((models) => {
                 let models_select = $(`#${this.models_id}`);
@@ -1780,16 +1804,70 @@ class SettingsModal {
                     let option = new Option(model, model);
                     models_select.append(option);
                 }
-                // console.log(`Get models from ${endpoint}:`, models);
+                GM.getValue("airead_llm_model", LLM_MODEL).then((gm_model) => {
+                    self.set_model_select(gm_model);
+                    console.log(
+                        `init airead_llm_model :${models_select.val()}`
+                    );
+                });
             });
         }
     }
+    set_model_select(model_val = null) {
+        let models_select = $(`#${this.models_id}`);
+        let models = models_select.children().map(function () {
+            return $(this).val();
+        });
+
+        if (Array.from(models).includes(model_val)) {
+            models_select.val(model_val);
+        } else {
+            models_select.val(models[0]);
+        }
+    }
+    reset_endpoint_and_api_key() {
+        GM.setValue("airead_llm_endpoint", LLM_ENDPOINT).then(() => {
+            $(`#${this.endpoint_id}`).val(LLM_ENDPOINT);
+            console.log(`reset airead_llm_endpoint :${LLM_ENDPOINT}`);
+        });
+        GM.setValue("airead_llm_api_key", LLM_API_KEY).then(() => {
+            $(`#${this.api_key_id}`).val(LLM_API_KEY);
+            console.log(`reset airead_llm_api_key :${LLM_API_KEY}`);
+        });
+    }
+    reset_model_select() {
+        GM.setValue("airead_llm_model", LLM_MODEL).then(() => {
+            this.set_model_select(LLM_MODEL);
+            console.log(`reset airead_llm_model :${LLM_MODEL}`);
+        });
+    }
+    save_endpoint_and_api_key() {
+        let endpoint = $(`#${this.endpoint_id}`).val();
+        let api_key = $(`#${this.api_key_id}`).val();
+        Promise.all([
+            GM.setValue("airead_llm_endpoint", endpoint),
+            console.log(`save airead_llm_endpoint :${endpoint}`),
+            GM.setValue("airead_llm_api_key", api_key),
+            console.log(`save airead_llm_api_key :${api_key}`),
+        ]).then(() => {});
+    }
+    save_model() {
+        let model = $(`#${this.models_id}`).val();
+        GM.setValue("airead_llm_model", model).then(() => {
+            console.log(`save airead_llm_model :${model}`);
+        });
+    }
     bind_buttons() {
         let self = this;
-        this.widget.find(`#${this.save_button_id}`).on("click", function () {
-            self.save_endpoint_and_api_key().then(() => {
-                self.set_models_select();
-            });
+        let default_button = this.widget.find(`#${this.default_button_id}`);
+        default_button.on("click", function () {
+            self.reset_endpoint_and_api_key();
+            self.reset_model_select();
+        });
+        let save_button = this.widget.find(`#${this.save_button_id}`);
+        save_button.on("click", function () {
+            self.save_endpoint_and_api_key();
+            self.save_model();
         });
     }
     create_widget() {
@@ -1852,7 +1930,7 @@ class SettingsModal {
         this.create_temperature_widget();
         this.create_top_p_widget();
         this.create_max_output_tokens_widget();
-        this.set_endpoint_and_api_key();
+        this.init_endpoint_and_api_key();
         this.bind_buttons();
     }
     append_to_body() {

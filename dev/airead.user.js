@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         (Dev) AIRead
 // @namespace    http://tampermonkey.net/
-// @version      0.5.1
+// @version      0.6
 // @description  (Dev) An AI-assisted reading script in browsers.
 // @author       Hansimov
 // @match        https://*.wikipedia.org/wiki/*
