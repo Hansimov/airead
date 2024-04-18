@@ -567,6 +567,20 @@ async function process_stream_response(response, on_chunk) {
     return content;
 }
 
+function get_llm_endpoint() {
+    let endpoint_widget = document.getElementById("settings-modal-endpoint");
+    return endpoint_widget.value;
+}
+
+function get_llm_api_key() {
+    let api_key_widget = document.getElementById("settings-modal-api-key");
+    return api_key_widget.value;
+}
+function get_llm_model() {
+    let model_widget = document.getElementById("settings-modal-models");
+    return model_widget.value;
+}
+
 function get_llm_models({ endpoint } = {}) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
@@ -589,8 +603,8 @@ function get_llm_models({ endpoint } = {}) {
 
 function chat_completions({
     messages,
-    endpoint = LLM_ENDPOINT,
-    model = LLM_MODEL,
+    endpoint = get_llm_endpoint() || LLM_ENDPOINT,
+    model = get_llm_model() || LLM_MODEL,
     max_tokens = -1,
     temperature = 0.5,
     top_p = 0.95,
@@ -1702,7 +1716,7 @@ class RangeNumberWidget {
 }
 
 class SettingsModal {
-    constructor({ id = "settings" } = {}) {
+    constructor({ id = "settings-modal" } = {}) {
         this.id = id;
         this.endpoint_id = `${this.id}-endpoint`;
         this.api_key_id = `${this.id}-api-key`;
