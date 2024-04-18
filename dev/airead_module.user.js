@@ -522,6 +522,7 @@ function get_element_text(element) {
 
 const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
 const LLM_API_KEY = "sk-xxxx";
+const LLM_MODEL = "nous-mixtral-8x7b";
 
 async function process_stream_response(response, on_chunk) {
     const decoder = new TextDecoder("utf-8");
@@ -589,7 +590,7 @@ function get_llm_models({ endpoint } = {}) {
 function chat_completions({
     messages,
     endpoint = LLM_ENDPOINT,
-    model = "mixtral-8x7b",
+    model = LLM_MODEL,
     max_tokens = -1,
     temperature = 0.5,
     top_p = 0.95,
@@ -1763,8 +1764,7 @@ class SettingsModal {
             max_output_tokens_widget_parent
         );
     }
-    set_endpoint_and_api_key() {
-        // get endpoint and api_key with GM.getValue
+    init_endpoint_and_api_key() {
         Promise.all([
             GM.getValue("airead_llm_endpoint", LLM_ENDPOINT).then(
                 (endpoint) => {
@@ -1775,20 +1775,13 @@ class SettingsModal {
                 $(`#${this.api_key_id}`).val(api_key);
             }),
         ]).then(() => {
-            this.set_models_select();
+            this.init_models_select();
         });
     }
-    save_endpoint_and_api_key() {
+    init_models_select() {
         let endpoint = $(`#${this.endpoint_id}`).val();
         let api_key = $(`#${this.api_key_id}`).val();
-        return Promise.all([
-            GM.setValue("airead_llm_endpoint", endpoint),
-            GM.setValue("airead_llm_api_key", api_key),
-        ]);
-    }
-    set_models_select() {
-        let endpoint = $(`#${this.endpoint_id}`).val();
-        let api_key = $(`#${this.api_key_id}`).val();
+        let self = this;
         if (endpoint) {
             get_llm_models({ endpoint: endpoint }).then((models) => {
                 let models_select = $(`#${this.models_id}`);
@@ -1797,16 +1790,70 @@ class SettingsModal {
                     let option = new Option(model, model);
                     models_select.append(option);
                 }
-                // console.log(`Get models from ${endpoint}:`, models);
+                GM.getValue("airead_llm_model", LLM_MODEL).then((gm_model) => {
+                    self.set_model_select(gm_model);
+                    console.log(
+                        `init airead_llm_model :${models_select.val()}`
+                    );
+                });
             });
         }
     }
+    set_model_select(model_val = null) {
+        let models_select = $(`#${this.models_id}`);
+        let models = models_select.children().map(function () {
+            return $(this).val();
+        });
+
+        if (Array.from(models).includes(model_val)) {
+            models_select.val(model_val);
+        } else {
+            models_select.val(models[0]);
+        }
+    }
+    reset_endpoint_and_api_key() {
+        GM.setValue("airead_llm_endpoint", LLM_ENDPOINT).then(() => {
+            $(`#${this.endpoint_id}`).val(LLM_ENDPOINT);
+            console.log(`reset airead_llm_endpoint :${LLM_ENDPOINT}`);
+        });
+        GM.setValue("airead_llm_api_key", LLM_API_KEY).then(() => {
+            $(`#${this.api_key_id}`).val(LLM_API_KEY);
+            console.log(`reset airead_llm_api_key :${LLM_API_KEY}`);
+        });
+    }
+    reset_model_select() {
+        GM.setValue("airead_llm_model", LLM_MODEL).then(() => {
+            this.set_model_select(LLM_MODEL);
+            console.log(`reset airead_llm_model :${LLM_MODEL}`);
+        });
+    }
+    save_endpoint_and_api_key() {
+        let endpoint = $(`#${this.endpoint_id}`).val();
+        let api_key = $(`#${this.api_key_id}`).val();
+        Promise.all([
+            GM.setValue("airead_llm_endpoint", endpoint),
+            console.log(`save airead_llm_endpoint :${endpoint}`),
+            GM.setValue("airead_llm_api_key", api_key),
+            console.log(`save airead_llm_api_key :${api_key}`),
+        ]).then(() => {});
+    }
+    save_model() {
+        let model = $(`#${this.models_id}`).val();
+        GM.setValue("airead_llm_model", model).then(() => {
+            console.log(`save airead_llm_model :${model}`);
+        });
+    }
     bind_buttons() {
         let self = this;
-        this.widget.find(`#${this.save_button_id}`).on("click", function () {
-            self.save_endpoint_and_api_key().then(() => {
-                self.set_models_select();
-            });
+        let default_button = this.widget.find(`#${this.default_button_id}`);
+        default_button.on("click", function () {
+            self.reset_endpoint_and_api_key();
+            self.reset_model_select();
+        });
+        let save_button = this.widget.find(`#${this.save_button_id}`);
+        save_button.on("click", function () {
+            self.save_endpoint_and_api_key();
+            self.save_model();
         });
     }
     create_widget() {
@@ -1869,7 +1916,7 @@ class SettingsModal {
         this.create_temperature_widget();
         this.create_top_p_widget();
         this.create_max_output_tokens_widget();
-        this.set_endpoint_and_api_key();
+        this.init_endpoint_and_api_key();
         this.bind_buttons();
     }
     append_to_body() {
