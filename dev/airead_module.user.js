@@ -385,8 +385,9 @@ class ElementContentConverter {
             latex_text = latex_text.replace("\\displaystyle", "");
 
             if (!keep_format) {
+                let re;
                 for (let regex in LATEX_FORMAT_MAP) {
-                    let re = new RegExp(regex, "gm");
+                    re = new RegExp(regex, "gm");
                     latex_text = latex_text.replace(re, LATEX_FORMAT_MAP[regex]);
                 }
             }
@@ -459,8 +460,9 @@ class ElementContentConverter {
         return element.outerHTML;
     }
     remove_whitespaces(text) {
+        let re;
         for (let regex in WHITESPACE_MAP) {
-            let re = new RegExp(regex, "gm");
+            re = new RegExp(regex, "gm");
             text = text.replace(re, WHITESPACE_MAP[regex]);
         }
         return text;
