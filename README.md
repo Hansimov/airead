@@ -22,10 +22,12 @@ Latest updates and demos would be posted on Bilibili:
   - Render Markdown and LaTeX formulas
 
 ## CHANGELOG
-- v0.7 (2025-01-03)
-  - Auto prompt user to fill-in endpoint and api_key, and make compatible with DeepSeek api
+- v0.8.1 (2025-01-03)
+  - New pre-defined buttons for commonly-used prompts
 - v0.8 (2025-01-03)
   - New chat button, and support history chat messages
+- v0.7 (2025-01-03)
+  - Auto prompt user to fill-in endpoint and api_key, and make compatible with DeepSeek api
 
 ## For Users
 

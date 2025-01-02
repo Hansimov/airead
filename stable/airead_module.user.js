@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AIRead Module
 // @namespace    http://tampermonkey.net/
-// @version      0.0
+// @version      0.8.1
 // @description  Module script for AIRead
 // @author       Hansimov
 // @connect      *
@@ -713,7 +713,15 @@ const AIREAD_CSS = `
 }
 .airead-chat-user-input-options {
 }
+.airead-chat-message-assistant {
+    th, td {
+        padding: 4px;
+    }
+}
 .airead-chat-user-input-new-chat-btn,
+.airead-chat-user-input-summarize-btn,
+.airead-chat-user-input-translate-btn,
+.airead-chat-user-input-keypoints-btn,
 .airead-chat-user-input-option-select-para,
 .airead-chat-user-input-option-select-level {
     padding: 0px 4px 0px 4px;
@@ -1214,7 +1222,10 @@ class ChatUserInput {
             <div class="my-2 row no-gutters airead-chat-user-input-group">
                 <div class="airead-chat-user-input-options">
                     <div class="col px-0 pb-2 d-flex align-items-left">
-                        <button class="btn airead-chat-user-input-new-chat-btn">New Chat</button>
+                        <button class="btn airead-chat-user-input-new-chat-btn">清空对话</button>
+                        <button class="btn airead-chat-user-input-summarize-btn">总结</button>
+                        <button class="btn airead-chat-user-input-translate-btn">翻译</button>
+                        <button class="btn airead-chat-user-input-keypoints-btn">要点</button>
                         <select class="form-control airead-chat-user-input-option-select-para" title="Select more paragraphs as context">
                             <option value="only_this_para">only this para</option>
                             <option value="more_paras_auto" selected="selected">more paras (auto)</option>
@@ -1301,7 +1312,7 @@ class ChatUserInput {
         }
         return context;
     }
-    bind_new_chat() {
+    bind_new_chat_btn() {
         let self = this;
         let new_chat_button = this.user_input_group.querySelector(
             ".airead-chat-user-input-new-chat-btn"
@@ -1366,6 +1377,53 @@ class ChatUserInput {
             add_option_html(this);
         });
     }
+    submit_user_input({
+        user_input_content = "",
+        user_input = null,
+        trigger = "user_input",
+        parent_element = null
+    } = {}) {
+        let self = this;
+        let user_chat_message = new UserChatMessageElement({
+            role: "user",
+            content: user_input_content,
+        });
+        self.user_chat_message_element =
+            user_chat_message.spawn(parent_element);
+
+        if (trigger === "user_input") {
+            user_input.style.height = "auto";
+            // let prompt = user_input.value;
+            user_input.value = "";
+        }
+
+        let assistant_chat_message = new AssistantChatMessageElement({
+            role: "assistant",
+            content: "",
+        });
+        self.last_assistant_chat_message_element =
+            assistant_chat_message.spawn(parent_element);
+        let context = self.get_selected_elements_context();
+        let context_message = {
+            role: "user",
+            content: `请根据下面的文本，回答用户的问题或指令:\n=====\n${context}\n=====\n`,
+        };
+        let messages = [
+            context_message,
+            ...self.get_history_chat_messages(),
+        ];
+        console.log(messages);
+        console.log(self.last_assistant_chat_message_element);
+        chat_completions({
+            messages: messages,
+            model: get_llm_model(),
+            stream: true,
+        }).then((response) => {
+            process_stream_response(response, self.on_chunk).then((content) => {
+                console.log(content);
+            });
+        });
+    }
     bind_user_input(parent_element) {
         let self = this;
         let user_input = this.user_input_group.querySelector("textarea");
@@ -1380,54 +1438,55 @@ class ChatUserInput {
         user_input.addEventListener("keypress", (event) => {
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
-                let user_chat_message = new UserChatMessageElement({
-                    role: "user",
-                    content: user_input.value,
-                });
-                self.user_chat_message_element =
-                    user_chat_message.spawn(parent_element);
-
-                user_input.style.height = "auto";
-                // let prompt = user_input.value;
-                user_input.value = "";
-
-                let assistant_chat_message = new AssistantChatMessageElement({
-                    role: "assistant",
-                    content: "",
-                });
-                self.last_assistant_chat_message_element =
-                    assistant_chat_message.spawn(parent_element);
-                let context = self.get_selected_elements_context();
-                let context_message = {
-                    role: "user",
-                    content: `请根据下面的文本，回答用户的问题或指令:\n
-                            \`\`\`${context}\`\`\`\n`,
-                };
-                let messages = [
-                    context_message,
-                    ...self.get_history_chat_messages(),
-                ];
-                console.log(messages);
-                console.log(self.last_assistant_chat_message_element);
-                chat_completions({
-                    messages: messages,
-                    model: get_llm_model(),
-                    stream: true,
-                }).then((response) => {
-                    process_stream_response(response, self.on_chunk).then((content) => {
-                        console.log(content);
-                    });
+                self.submit_user_input({
+                    user_input_content: user_input.value,
+                    user_input: user_input,
+                    trigger: "user_input",
+                    parent_element: parent_element,
                 });
             }
         });
+    }
+    bind_preprompt_buttons(parent_element) {
+        let self = this;
+        let button_configs = [
+            {
+                "name": "translate",
+                "class": "airead-chat-user-input-translate-btn",
+                "prompt": "翻译"
+            },
+            {
+                "name": "summarize",
+                "class": "airead-chat-user-input-summarize-btn",
+                "prompt": "总结"
+            },
+            {
+                "name": "keypoints",
+                "class": "airead-chat-user-input-keypoints-btn",
+                "prompt": "提炼要点"
+            },
+        ]
+        for (let button_config of button_configs) {
+            let button = this.user_input_group.querySelector(
+                `.${button_config.class}`
+            );
+            button.addEventListener("click", function () {
+                self.submit_user_input({
+                    user_input_content: button_config.prompt,
+                    trigger: button_config.name,
+                    parent_element: parent_element,
+                });
+            });
+        }
     }
     spawn(parent_element) {
         this.user_input_group = document.createElement("div");
         this.user_input_group.innerHTML = this.construct_html().trim();
         this.user_input_group = this.user_input_group.firstChild;
         parent_element.parentNode.appendChild(this.user_input_group);
+        this.bind_new_chat_btn();
         this.bind_user_input(parent_element);
-        this.bind_new_chat();
+        this.bind_preprompt_buttons(parent_element);
         this.bind_options();
         return this.user_input_group;
     }

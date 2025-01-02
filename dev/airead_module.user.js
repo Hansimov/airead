@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         (Dev) AIRead Module
 // @namespace    http://tampermonkey.net/
-// @version      0.0
+// @version      0.8.1
 // @description  (Dev) Module script for AIRead
 // @author       Hansimov
 // @connect      *
