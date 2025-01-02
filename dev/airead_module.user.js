@@ -713,16 +713,17 @@ const AIREAD_CSS = `
 }
 .airead-chat-user-input-options {
 }
+.airead-chat-user-input-new-chat-btn,
 .airead-chat-user-input-option-select-para,
 .airead-chat-user-input-option-select-level {
-    padding: 0px 2px 0px 2px;
-    margin: 0;
+    padding: 0px 4px 0px 4px;
+    margin: 0px 8px 0px 0px;
     border-radius: 2px;
     box-shadow: 0px 0px 3px gray;
     font-size: small;
 }
 .airead-chat-user-input-option-select-para {
-    width: 100px;
+    width: 115px;
 }
 .airead-chat-user-input-option-select-level {
     width: auto;
@@ -1213,9 +1214,10 @@ class ChatUserInput {
             <div class="my-2 row no-gutters airead-chat-user-input-group">
                 <div class="airead-chat-user-input-options">
                     <div class="col px-0 pb-2 d-flex align-items-left">
+                        <button class="btn airead-chat-user-input-new-chat-btn">New Chat</button>
                         <select class="form-control airead-chat-user-input-option-select-para" title="Select more paragraphs as context">
                             <option value="only_this_para">only this para</option>
-                            <option value="more_paras_auto" selected="selected">(auto) more paras</option>
+                            <option value="more_paras_auto" selected="selected">more paras (auto)</option>
                         </select>
                     </div>
                 </div>
@@ -1249,7 +1251,6 @@ class ChatUserInput {
         element.dataset.content = last_content + delta_content;
         element.innerHTML = md2html(element.dataset.content);
     }
-
     on_chunk(chunk) {
         let delta = chunk.delta;
         if (delta.role) {
@@ -1281,6 +1282,21 @@ class ChatUserInput {
             context += element_text + "\n\n";
         }
         return context;
+    }
+    bind_new_chat() {
+        let self = this;
+        let new_chat_button = this.user_input_group.querySelector(
+            ".airead-chat-user-input-new-chat-btn"
+        );
+        new_chat_button.addEventListener("click", function () {
+            // remove all previous user and assistant chat messages
+            let chat_messages = self.user_input_group.parentNode.querySelectorAll(
+                ".airead-chat-message-user, .airead-chat-message-assistant"
+            );
+            for (let chat_message of chat_messages) {
+                chat_message.remove();
+            }
+        });
     }
     bind_options() {
         let self = this;
@@ -1395,6 +1411,7 @@ class ChatUserInput {
         this.user_input_group = this.user_input_group.firstChild;
         parent_element.parentNode.appendChild(this.user_input_group);
         this.bind_user_input(parent_element);
+        this.bind_new_chat();
         this.bind_options();
         return this.user_input_group;
     }
