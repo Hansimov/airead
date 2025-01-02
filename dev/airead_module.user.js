@@ -511,10 +511,6 @@ function get_element_text(element) {
 
 // ===================== OpenAI Start ===================== //
 
-const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
-const LLM_API_KEY = "Hansimov";
-const LLM_MODEL = "mixtral-8x7b";
-
 async function process_stream_response(response, on_chunk) {
     const decoder = new TextDecoder("utf-8");
     function stringify_stream_bytes(bytes) {
@@ -575,9 +571,10 @@ function get_llm_models({ endpoint, api_key } = {}) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "GET",
-            url: endpoint + "/v1/models",
+            url: endpoint + "/models",
             headers: {
                 "Content-Type": "application/json",
+                Accept: "application/json",
                 Authorization: `Bearer ${api_key}`,
             },
             onload: function (response) {
@@ -594,18 +591,18 @@ function get_llm_models({ endpoint, api_key } = {}) {
 
 function chat_completions({
     messages,
-    endpoint = get_llm_endpoint() || LLM_ENDPOINT,
-    api_key = get_llm_api_key() || LLM_API_KEY,
-    model = get_llm_model() || LLM_MODEL,
-    max_tokens = -1,
+    endpoint = get_llm_endpoint(),
+    api_key = get_llm_api_key(),
+    model = get_llm_model(),
+    max_tokens = 4096,
     temperature = 0.5,
     top_p = 0.95,
-    stream = false,
+    stream = true,
 } = {}) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "POST",
-            url: endpoint + "/v1/chat/completions",
+            url: endpoint + "/chat/completions",
             headers: {
                 "Content-Type": "application/json",
                 Accept: "application/json",
@@ -1368,7 +1365,7 @@ class ChatUserInput {
                             content: prompt,
                         },
                     ],
-                    model: "nous-mixtral-8x7b",
+                    model: get_llm_model(),
                     stream: true,
                 }).then((response) => {
                     console.log(context);
@@ -1707,6 +1704,9 @@ class SettingsModal {
         this.create_widget();
         this.append_to_body();
     }
+    show() {
+        $(`#${this.id}`).modal("show");
+    }
     remove() {
         this.widget.remove();
     }
@@ -1752,12 +1752,16 @@ class SettingsModal {
     }
     init_endpoint_and_api_key() {
         Promise.all([
-            GM.getValue("airead_llm_endpoint", LLM_ENDPOINT).then(
-                (endpoint) => {
-                    $(`#${this.endpoint_id}`).val(endpoint);
+            GM.getValue("airead_llm_endpoint", "").then((endpoint) => {
+                if (!endpoint) {
+                    this.show();
                 }
-            ),
-            GM.getValue("airead_llm_api_key", LLM_API_KEY).then((api_key) => {
+                    $(`#${this.endpoint_id}`).val(endpoint);
+            }),
+            GM.getValue("airead_llm_api_key", "").then((api_key) => {
+                if (!api_key) {
+                    this.show();
+                }
                 $(`#${this.api_key_id}`).val(api_key);
             }),
         ]).then(() => {
@@ -1777,14 +1781,10 @@ class SettingsModal {
                         let option = new Option(model, model);
                         models_select.append(option);
                     }
-                    GM.getValue("airead_llm_model", LLM_MODEL).then(
-                        (gm_model) => {
+                    GM.getValue("airead_llm_model", "").then((gm_model) => {
                             self.set_model_select(gm_model);
-                            console.log(
-                                `init airead_llm_model :${models_select.val()}`
-                            );
-                        }
-                    );
+                        console.log(`init airead_llm_model: ${models_select.val()}`);
+                    });
                 }
             );
         }
@@ -1802,19 +1802,19 @@ class SettingsModal {
         }
     }
     reset_endpoint_and_api_key() {
-        GM.setValue("airead_llm_endpoint", LLM_ENDPOINT).then(() => {
-            $(`#${this.endpoint_id}`).val(LLM_ENDPOINT);
-            console.log(`reset airead_llm_endpoint :${LLM_ENDPOINT}`);
+        GM.setValue("airead_llm_endpoint", "").then(() => {
+            $(`#${this.endpoint_id}`).val("");
+            console.log(`reset airead_llm_endpoint :${""}`);
         });
-        GM.setValue("airead_llm_api_key", LLM_API_KEY).then(() => {
-            $(`#${this.api_key_id}`).val(LLM_API_KEY);
-            console.log(`reset airead_llm_api_key :${LLM_API_KEY}`);
+        GM.setValue("airead_llm_api_key", "").then(() => {
+            $(`#${this.api_key_id}`).val("");
+            console.log(`reset airead_llm_api_key :${""}`);
         });
     }
     reset_model_select() {
-        GM.setValue("airead_llm_model", LLM_MODEL).then(() => {
-            this.set_model_select(LLM_MODEL);
-            console.log(`reset airead_llm_model :${LLM_MODEL}`);
+        GM.setValue("airead_llm_model", "").then(() => {
+            this.set_model_select("");
+            console.log(`reset airead_llm_model :${""}`);
         });
     }
     save_endpoint_and_api_key() {
@@ -1825,10 +1825,24 @@ class SettingsModal {
             console.log(`save airead_llm_endpoint :${endpoint}`),
             GM.setValue("airead_llm_api_key", api_key),
             console.log(`save airead_llm_api_key :${api_key}`),
-        ]).then(() => {});
+        ]).then(() => { });
     }
     save_model() {
         let model = $(`#${this.models_id}`).val();
+        if (!model) {
+            get_llm_models(
+                {
+                    endpoint: $(`#${this.endpoint_id}`).val(),
+                    api_key: $(`#${this.api_key_id}`).val(),
+                }
+            ).then((models) => {
+                model = models[0];
+                GM.setValue("airead_llm_model", model).then(() => {
+                    console.log(`save airead_llm_model :${model}`);
+                });
+                this.init_models_select();
+            });
+        }
         GM.setValue("airead_llm_model", model).then(() => {
             console.log(`save airead_llm_model :${model}`);
         });
