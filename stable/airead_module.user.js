@@ -236,7 +236,7 @@ function calc_width_of_descendants(element) {
 // Main Classes
 
 class PureElementsSelector {
-    constructor() {}
+    constructor() { }
     is_atomized(element) {
         const tag = get_tag(element);
         const descendants = get_descendants(element);
@@ -269,12 +269,7 @@ class PureElementsSelector {
         // if class+id of element+parents match any pattern in REMOVED_CLASSES, then remove it
         for (let i = 0; i < REMOVED_CLASSES.length; i++) {
             for (let j = 0; j < output_elements.length; j++) {
-                if (
-                    is_class_id_match_pattern(
-                        output_elements[j],
-                        REMOVED_CLASSES[i]
-                    )
-                ) {
+                if (is_class_id_match_pattern(output_elements[j], REMOVED_CLASSES[i])) {
                     // remove element from DOM
                     output_elements[j].remove();
                     // remove element from output_elements
@@ -289,8 +284,7 @@ class PureElementsSelector {
         // if class+id of element+parents match any pattern in EXCLUDED_CLASSES, then exclude it
         for (let i = 0; i < EXCLUDED_CLASSES.length; i++) {
             output_elements = output_elements.filter(
-                (element) =>
-                    !is_class_id_match_pattern(element, EXCLUDED_CLASSES[i])
+                (element) => !is_class_id_match_pattern(element, EXCLUDED_CLASSES[i])
             );
         }
         return output_elements;
@@ -393,10 +387,7 @@ class ElementContentConverter {
             if (!keep_format) {
                 for (let regex in LATEX_FORMAT_MAP) {
                     let re = new RegExp(regex, "gm");
-                    latex_text = latex_text.replace(
-                        re,
-                        LATEX_FORMAT_MAP[regex]
-                    );
+                    latex_text = latex_text.replace(re, LATEX_FORMAT_MAP[regex]);
                 }
             }
 
@@ -520,10 +511,6 @@ function get_element_text(element) {
 
 // ===================== OpenAI Start ===================== //
 
-const LLM_ENDPOINT = "https://hansimov-hf-llm-api.hf.space/api";
-const LLM_API_KEY = "Hansimov";
-const LLM_MODEL = "mixtral-8x7b";
-
 async function process_stream_response(response, on_chunk) {
     const decoder = new TextDecoder("utf-8");
     function stringify_stream_bytes(bytes) {
@@ -558,7 +545,17 @@ async function process_stream_response(response, on_chunk) {
         }
         let json_chunks = jsonize_stream_data(stringify_stream_bytes(value));
         for (let json_chunk of json_chunks) {
-            let chunk = json_chunk.choices[0];
+            let chunk;
+            try {
+                chunk = json_chunk.choices[0];
+            } catch (error) {
+                console.log("Failed to parse choices:", error);
+                console.log("json_chunk:", json_chunk);
+                let error_message = json_chunk.error.message || "Please check console log for details.";
+                chunk = {
+                    delta: { content: `<mark>API Error: <code>${error_message}</code></mark>` }
+                }
+            }
             if (on_chunk) {
                 content += on_chunk(chunk);
             }
@@ -571,7 +568,6 @@ function get_llm_endpoint() {
     let endpoint_widget = document.getElementById("settings-modal-endpoint");
     return endpoint_widget.value;
 }
-
 function get_llm_api_key() {
     let api_key_widget = document.getElementById("settings-modal-api-key");
     return api_key_widget.value;
@@ -585,9 +581,10 @@ function get_llm_models({ endpoint, api_key } = {}) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "GET",
-            url: endpoint + "/v1/models",
+            url: endpoint + "/models",
             headers: {
                 "Content-Type": "application/json",
+                Accept: "application/json",
                 Authorization: `Bearer ${api_key}`,
             },
             onload: function (response) {
@@ -604,18 +601,18 @@ function get_llm_models({ endpoint, api_key } = {}) {
 
 function chat_completions({
     messages,
-    endpoint = get_llm_endpoint() || LLM_ENDPOINT,
-    api_key = get_llm_api_key() || LLM_API_KEY,
-    model = get_llm_model() || LLM_MODEL,
-    max_tokens = -1,
+    endpoint = get_llm_endpoint(),
+    api_key = get_llm_api_key(),
+    model = get_llm_model(),
+    max_tokens = 4096,
     temperature = 0.5,
     top_p = 0.95,
-    stream = false,
+    stream = true,
 } = {}) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "POST",
-            url: endpoint + "/v1/chat/completions",
+            url: endpoint + "/chat/completions",
             headers: {
                 "Content-Type": "application/json",
                 Accept: "application/json",
@@ -967,17 +964,12 @@ function set_pure_element_rel_levels() {
                 prev_element = window.pure_elements[i - 1];
                 if (is_header(prev_element)) {
                     level =
-                        parseFloat(
-                            prev_element.getAttribute("airead-level-rel")
-                        ) + 0.5;
+                        parseFloat(prev_element.getAttribute("airead-level-rel")) + 0.5;
                     if (is_item(element) || is_env(element)) {
                         level += 1;
                     }
                 } else {
-                    let level_diff = compare_element_level(
-                        element,
-                        prev_element
-                    );
+                    let level_diff = compare_element_level(element, prev_element);
                     level += Math.sign(level_diff);
                 }
             }
@@ -997,9 +989,7 @@ function get_parents_by_depth({
 } = {}) {
     let parents = [];
     let element_index = element_list.indexOf(element);
-    let element_rel_level = parseFloat(
-        element.getAttribute("airead-level-rel")
-    );
+    let element_rel_level = parseFloat(element.getAttribute("airead-level-rel"));
     let tag = get_tag(element);
     for (let i = element_index - 1; i >= 0; i--) {
         let sibling = element_list[i];
@@ -1056,9 +1046,7 @@ function get_children_by_depth({
 } = {}) {
     let children = [];
     let element_index = element_list.indexOf(element);
-    let element_rel_level = parseFloat(
-        element.getAttribute("airead-level-rel")
-    );
+    let element_rel_level = parseFloat(element.getAttribute("airead-level-rel"));
     for (let i = element_index + 1; i < element_list.length; i++) {
         let sibling = element_list[i];
         let sibling_rel_level = parseFloat(
@@ -1285,11 +1273,7 @@ class ChatUserInput {
         let parent_siblings = parents_and_children_siblings[0];
         let children_siblings = parents_and_children_siblings[1];
         let context = "";
-        let selected_elements = [
-            ...parent_siblings,
-            element,
-            ...children_siblings,
-        ];
+        let selected_elements = [...parent_siblings, element, ...children_siblings];
         for (let selected_element of selected_elements) {
             let element_text = get_element_text(selected_element);
             context += element_text + "\n\n";
@@ -1391,16 +1375,14 @@ class ChatUserInput {
                             content: prompt,
                         },
                     ],
-                    model: "nous-mixtral-8x7b",
+                    model: get_llm_model(),
                     stream: true,
                 }).then((response) => {
                     console.log(context);
                     console.log(prompt);
-                    process_stream_response(response, self.on_chunk).then(
-                        (content) => {
-                            console.log(content);
-                        }
-                    );
+                    process_stream_response(response, self.on_chunk).then((content) => {
+                        console.log(content);
+                    });
                 });
             }
         });
@@ -1478,12 +1460,12 @@ function add_container_to_element(element, tool_button_group) {
             tool_button_group.attach_to_element(element);
         }
     });
-    container.addEventListener("mouseleave", (event) => {});
+    container.addEventListener("mouseleave", (event) => { });
     return container;
 }
 
 class NoteElement {
-    constructor() {}
+    constructor() { }
     spawn(element) {
         let note_element = document.createElement("div");
         element.parentNode.appendChild(note_element);
@@ -1514,7 +1496,7 @@ class ToolButtonGroup {
         this.button_group = document.createElement("div");
         this.button_group.id = "airead-tool-button-group";
         this.button_group.classList.add("airead-tool-button-group");
-        this.chat_button = this.create_button("Chat", () => {});
+        this.chat_button = this.create_button("Chat", () => { });
         // this.copy_button = this.create_button("Print", () => {});
         // this.parent_button = this.create_button("Parent", () => {});
 
@@ -1534,10 +1516,7 @@ class ToolButtonGroup {
         if (this.button_group.parentNode !== element.parentNode) {
             this.button_group.parentNode.removeChild(this.button_group);
             // insert this.button_group just after element
-            element.parentNode.insertBefore(
-                this.button_group,
-                element.nextSibling
-            );
+            element.parentNode.insertBefore(this.button_group, element.nextSibling);
         }
         const update_button_group_position = () => {
             let button_group_left =
@@ -1578,8 +1557,7 @@ class ToolButtonGroup {
                 );
                 if (no_user_input_exists) {
                     let chat_user_input_instance = new ChatUserInput();
-                    let chat_user_group =
-                        chat_user_input_instance.spawn(element);
+                    let chat_user_group = chat_user_input_instance.spawn(element);
                 }
                 element.parentNode.lastChild.style.display = "block";
                 let chat_messages = element.parentNode.querySelectorAll(
@@ -1736,6 +1714,9 @@ class SettingsModal {
         this.create_widget();
         this.append_to_body();
     }
+    show() {
+        $(`#${this.id}`).modal("show");
+    }
     remove() {
         this.widget.remove();
     }
@@ -1748,9 +1729,7 @@ class SettingsModal {
             max_val: 1,
             step_val: 0.1,
         });
-        let temperature_widget_parent = this.widget.find(
-            `#${this.temperature_id}`
-        );
+        let temperature_widget_parent = this.widget.find(`#${this.temperature_id}`);
         this.temperature_widget.spawn_in_parent(temperature_widget_parent);
     }
     create_top_p_widget() {
@@ -1768,9 +1747,9 @@ class SettingsModal {
     create_max_output_tokens_widget() {
         this.max_output_tokens_widget = new RangeNumberWidget({
             id: this.max_output_tokens_id,
-            label_text: "Max Output Tokens <code>(-1: auto)</code>",
-            default_val: -1,
-            min_val: -1,
+            label_text: "Max Output Tokens",
+            default_val: 4096,
+            min_val: 1,
             max_val: 32768,
             step_val: 1,
         });
@@ -1783,12 +1762,16 @@ class SettingsModal {
     }
     init_endpoint_and_api_key() {
         Promise.all([
-            GM.getValue("airead_llm_endpoint", LLM_ENDPOINT).then(
-                (endpoint) => {
-                    $(`#${this.endpoint_id}`).val(endpoint);
+            GM.getValue("airead_llm_endpoint", "").then((endpoint) => {
+                if (!endpoint) {
+                    this.show();
                 }
-            ),
-            GM.getValue("airead_llm_api_key", LLM_API_KEY).then((api_key) => {
+                $(`#${this.endpoint_id}`).val(endpoint);
+            }),
+            GM.getValue("airead_llm_api_key", "").then((api_key) => {
+                if (!api_key) {
+                    this.show();
+                }
                 $(`#${this.api_key_id}`).val(api_key);
             }),
         ]).then(() => {
@@ -1808,14 +1791,10 @@ class SettingsModal {
                         let option = new Option(model, model);
                         models_select.append(option);
                     }
-                    GM.getValue("airead_llm_model", LLM_MODEL).then(
-                        (gm_model) => {
-                            self.set_model_select(gm_model);
-                            console.log(
-                                `init airead_llm_model :${models_select.val()}`
-                            );
-                        }
-                    );
+                    GM.getValue("airead_llm_model", "").then((gm_model) => {
+                        self.set_model_select(gm_model);
+                        console.log(`init airead_llm_model: ${models_select.val()}`);
+                    });
                 }
             );
         }
@@ -1833,19 +1812,19 @@ class SettingsModal {
         }
     }
     reset_endpoint_and_api_key() {
-        GM.setValue("airead_llm_endpoint", LLM_ENDPOINT).then(() => {
-            $(`#${this.endpoint_id}`).val(LLM_ENDPOINT);
-            console.log(`reset airead_llm_endpoint :${LLM_ENDPOINT}`);
+        GM.setValue("airead_llm_endpoint", "").then(() => {
+            $(`#${this.endpoint_id}`).val("");
+            console.log(`reset airead_llm_endpoint :${""}`);
         });
-        GM.setValue("airead_llm_api_key", LLM_API_KEY).then(() => {
-            $(`#${this.api_key_id}`).val(LLM_API_KEY);
-            console.log(`reset airead_llm_api_key :${LLM_API_KEY}`);
+        GM.setValue("airead_llm_api_key", "").then(() => {
+            $(`#${this.api_key_id}`).val("");
+            console.log(`reset airead_llm_api_key :${""}`);
         });
     }
     reset_model_select() {
-        GM.setValue("airead_llm_model", LLM_MODEL).then(() => {
-            this.set_model_select(LLM_MODEL);
-            console.log(`reset airead_llm_model :${LLM_MODEL}`);
+        GM.setValue("airead_llm_model", "").then(() => {
+            this.set_model_select("");
+            console.log(`reset airead_llm_model :${""}`);
         });
     }
     save_endpoint_and_api_key() {
@@ -1856,10 +1835,24 @@ class SettingsModal {
             console.log(`save airead_llm_endpoint :${endpoint}`),
             GM.setValue("airead_llm_api_key", api_key),
             console.log(`save airead_llm_api_key :${api_key}`),
-        ]).then(() => {});
+        ]).then(() => { });
     }
     save_model() {
         let model = $(`#${this.models_id}`).val();
+        if (!model) {
+            get_llm_models(
+                {
+                    endpoint: $(`#${this.endpoint_id}`).val(),
+                    api_key: $(`#${this.api_key_id}`).val(),
+                }
+            ).then((models) => {
+                model = models[0];
+                GM.setValue("airead_llm_model", model).then(() => {
+                    console.log(`save airead_llm_model :${model}`);
+                });
+                this.init_models_select();
+            });
+        }
         GM.setValue("airead_llm_model", model).then(() => {
             console.log(`save airead_llm_model :${model}`);
         });
@@ -1977,9 +1970,7 @@ class ToolPanel {
         this.panel = this.panel.firstChild;
         document.body.appendChild(this.panel);
         // bind function to panel button
-        this.panel_button = this.panel.querySelector(
-            ".airead-tool-panel-button"
-        );
+        this.panel_button = this.panel.querySelector(".airead-tool-panel-button");
         let self = this;
         this.panel_button.onclick = () => {
             $(`#${self.settings_modal_id}`).modal("show");

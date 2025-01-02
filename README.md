@@ -21,6 +21,10 @@ Latest updates and demos would be posted on Bilibili:
   - https://www.bilibili.com/video/BV1eJ4m1L7z9
   - Render Markdown and LaTeX formulas
 
+## CHANGELOG
+- v0.7 (2025-01-03)
+  - Auto prompt user to fill-in endpoint and api_key, and make compatible with DeepSeek api.
+
 ## For Users
 
 For most users, click and install is all you need:
