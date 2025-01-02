@@ -236,7 +236,7 @@ function calc_width_of_descendants(element) {
 // Main Classes
 
 class PureElementsSelector {
-    constructor() {}
+    constructor() { }
     is_atomized(element) {
         const tag = get_tag(element);
         const descendants = get_descendants(element);
@@ -269,12 +269,7 @@ class PureElementsSelector {
         // if class+id of element+parents match any pattern in REMOVED_CLASSES, then remove it
         for (let i = 0; i < REMOVED_CLASSES.length; i++) {
             for (let j = 0; j < output_elements.length; j++) {
-                if (
-                    is_class_id_match_pattern(
-                        output_elements[j],
-                        REMOVED_CLASSES[i]
-                    )
-                ) {
+                if (is_class_id_match_pattern(output_elements[j], REMOVED_CLASSES[i])) {
                     // remove element from DOM
                     output_elements[j].remove();
                     // remove element from output_elements
@@ -289,8 +284,7 @@ class PureElementsSelector {
         // if class+id of element+parents match any pattern in EXCLUDED_CLASSES, then exclude it
         for (let i = 0; i < EXCLUDED_CLASSES.length; i++) {
             output_elements = output_elements.filter(
-                (element) =>
-                    !is_class_id_match_pattern(element, EXCLUDED_CLASSES[i])
+                (element) => !is_class_id_match_pattern(element, EXCLUDED_CLASSES[i])
             );
         }
         return output_elements;
@@ -393,10 +387,7 @@ class ElementContentConverter {
             if (!keep_format) {
                 for (let regex in LATEX_FORMAT_MAP) {
                     let re = new RegExp(regex, "gm");
-                    latex_text = latex_text.replace(
-                        re,
-                        LATEX_FORMAT_MAP[regex]
-                    );
+                    latex_text = latex_text.replace(re, LATEX_FORMAT_MAP[regex]);
                 }
             }
 
@@ -571,7 +562,6 @@ function get_llm_endpoint() {
     let endpoint_widget = document.getElementById("settings-modal-endpoint");
     return endpoint_widget.value;
 }
-
 function get_llm_api_key() {
     let api_key_widget = document.getElementById("settings-modal-api-key");
     return api_key_widget.value;
@@ -967,17 +957,12 @@ function set_pure_element_rel_levels() {
                 prev_element = window.pure_elements[i - 1];
                 if (is_header(prev_element)) {
                     level =
-                        parseFloat(
-                            prev_element.getAttribute("airead-level-rel")
-                        ) + 0.5;
+                        parseFloat(prev_element.getAttribute("airead-level-rel")) + 0.5;
                     if (is_item(element) || is_env(element)) {
                         level += 1;
                     }
                 } else {
-                    let level_diff = compare_element_level(
-                        element,
-                        prev_element
-                    );
+                    let level_diff = compare_element_level(element, prev_element);
                     level += Math.sign(level_diff);
                 }
             }
@@ -997,9 +982,7 @@ function get_parents_by_depth({
 } = {}) {
     let parents = [];
     let element_index = element_list.indexOf(element);
-    let element_rel_level = parseFloat(
-        element.getAttribute("airead-level-rel")
-    );
+    let element_rel_level = parseFloat(element.getAttribute("airead-level-rel"));
     let tag = get_tag(element);
     for (let i = element_index - 1; i >= 0; i--) {
         let sibling = element_list[i];
@@ -1056,9 +1039,7 @@ function get_children_by_depth({
 } = {}) {
     let children = [];
     let element_index = element_list.indexOf(element);
-    let element_rel_level = parseFloat(
-        element.getAttribute("airead-level-rel")
-    );
+    let element_rel_level = parseFloat(element.getAttribute("airead-level-rel"));
     for (let i = element_index + 1; i < element_list.length; i++) {
         let sibling = element_list[i];
         let sibling_rel_level = parseFloat(
@@ -1285,11 +1266,7 @@ class ChatUserInput {
         let parent_siblings = parents_and_children_siblings[0];
         let children_siblings = parents_and_children_siblings[1];
         let context = "";
-        let selected_elements = [
-            ...parent_siblings,
-            element,
-            ...children_siblings,
-        ];
+        let selected_elements = [...parent_siblings, element, ...children_siblings];
         for (let selected_element of selected_elements) {
             let element_text = get_element_text(selected_element);
             context += element_text + "\n\n";
@@ -1396,11 +1373,9 @@ class ChatUserInput {
                 }).then((response) => {
                     console.log(context);
                     console.log(prompt);
-                    process_stream_response(response, self.on_chunk).then(
-                        (content) => {
+                    process_stream_response(response, self.on_chunk).then((content) => {
                             console.log(content);
-                        }
-                    );
+                    });
                 });
             }
         });
@@ -1478,12 +1453,12 @@ function add_container_to_element(element, tool_button_group) {
             tool_button_group.attach_to_element(element);
         }
     });
-    container.addEventListener("mouseleave", (event) => {});
+    container.addEventListener("mouseleave", (event) => { });
     return container;
 }
 
 class NoteElement {
-    constructor() {}
+    constructor() { }
     spawn(element) {
         let note_element = document.createElement("div");
         element.parentNode.appendChild(note_element);
@@ -1514,7 +1489,7 @@ class ToolButtonGroup {
         this.button_group = document.createElement("div");
         this.button_group.id = "airead-tool-button-group";
         this.button_group.classList.add("airead-tool-button-group");
-        this.chat_button = this.create_button("Chat", () => {});
+        this.chat_button = this.create_button("Chat", () => { });
         // this.copy_button = this.create_button("Print", () => {});
         // this.parent_button = this.create_button("Parent", () => {});
 
@@ -1534,10 +1509,7 @@ class ToolButtonGroup {
         if (this.button_group.parentNode !== element.parentNode) {
             this.button_group.parentNode.removeChild(this.button_group);
             // insert this.button_group just after element
-            element.parentNode.insertBefore(
-                this.button_group,
-                element.nextSibling
-            );
+            element.parentNode.insertBefore(this.button_group, element.nextSibling);
         }
         const update_button_group_position = () => {
             let button_group_left =
@@ -1578,8 +1550,7 @@ class ToolButtonGroup {
                 );
                 if (no_user_input_exists) {
                     let chat_user_input_instance = new ChatUserInput();
-                    let chat_user_group =
-                        chat_user_input_instance.spawn(element);
+                    let chat_user_group = chat_user_input_instance.spawn(element);
                 }
                 element.parentNode.lastChild.style.display = "block";
                 let chat_messages = element.parentNode.querySelectorAll(
@@ -1748,9 +1719,7 @@ class SettingsModal {
             max_val: 1,
             step_val: 0.1,
         });
-        let temperature_widget_parent = this.widget.find(
-            `#${this.temperature_id}`
-        );
+        let temperature_widget_parent = this.widget.find(`#${this.temperature_id}`);
         this.temperature_widget.spawn_in_parent(temperature_widget_parent);
     }
     create_top_p_widget() {
@@ -1977,9 +1946,7 @@ class ToolPanel {
         this.panel = this.panel.firstChild;
         document.body.appendChild(this.panel);
         // bind function to panel button
-        this.panel_button = this.panel.querySelector(
-            ".airead-tool-panel-button"
-        );
+        this.panel_button = this.panel.querySelector(".airead-tool-panel-button");
         let self = this;
         this.panel_button.onclick = () => {
             $(`#${self.settings_modal_id}`).modal("show");
