@@ -1245,6 +1245,24 @@ class ChatUserInput {
         }
         return last_assistant_chat_message_element;
     }
+    get_history_chat_messages() {
+        let chat_message_elements = this.user_input_group.parentNode.querySelectorAll(
+            ".airead-chat-message-user, .airead-chat-message-assistant"
+        );
+        let chat_messages = [];
+        for (let chat_message_element of chat_message_elements) {
+            let role = chat_message_element.classList.contains(
+                "airead-chat-message-user"
+            )
+                ? "user"
+                : "assistant";
+            let content = chat_message_element.dataset.content || "";
+            if (content) {
+                chat_messages.push({ role: role, content: content });
+            }
+        }
+        return chat_messages;
+    }
     update_last_assistant_chat_message_element(delta_content) {
         let element = this.last_assistant_chat_message_element;
         let last_content = element.dataset.content || "";
@@ -1370,7 +1388,7 @@ class ChatUserInput {
                     user_chat_message.spawn(parent_element);
 
                 user_input.style.height = "auto";
-                let prompt = user_input.value;
+                // let prompt = user_input.value;
                 user_input.value = "";
 
                 let assistant_chat_message = new AssistantChatMessageElement({
@@ -1379,25 +1397,23 @@ class ChatUserInput {
                 });
                 self.last_assistant_chat_message_element =
                     assistant_chat_message.spawn(parent_element);
-                console.log(self.last_assistant_chat_message_element);
                 let context = self.get_selected_elements_context();
-                chat_completions({
-                    messages: [
-                        {
-                            role: "user",
-                            content: `Please response according to following context:\n
+                let context_message = {
+                    role: "user",
+                    content: `请根据下面的文本，回答用户的问题或指令:\n
                             \`\`\`${context}\`\`\`\n`,
-                        },
-                        {
-                            role: "user",
-                            content: prompt,
-                        },
-                    ],
+                };
+                let messages = [
+                    context_message,
+                    ...self.get_history_chat_messages(),
+                ];
+                console.log(messages);
+                console.log(self.last_assistant_chat_message_element);
+                chat_completions({
+                    messages: messages,
                     model: get_llm_model(),
                     stream: true,
                 }).then((response) => {
-                    console.log(context);
-                    console.log(prompt);
                     process_stream_response(response, self.on_chunk).then((content) => {
                         console.log(content);
                     });
@@ -1437,6 +1453,7 @@ class UserChatMessageElement {
         );
         this.message_element.classList.add(`airead-chat-message-${this.role}`);
         this.message_element.textContent = this.content;
+        this.message_element.dataset.content = this.content;
         return this.message_element;
     }
 }
