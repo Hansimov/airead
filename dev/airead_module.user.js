@@ -545,7 +545,17 @@ async function process_stream_response(response, on_chunk) {
         }
         let json_chunks = jsonize_stream_data(stringify_stream_bytes(value));
         for (let json_chunk of json_chunks) {
-            let chunk = json_chunk.choices[0];
+            let chunk;
+            try {
+                chunk = json_chunk.choices[0];
+            } catch (error) {
+                console.log("Failed to parse choices:", error);
+                console.log("json_chunk:", json_chunk);
+                let error_message = json_chunk.error.message || "Please check console log for details.";
+                chunk = {
+                    delta: { content: `<mark>API Error: <code>${error_message}</code></mark>` }
+                }
+            }
             if (on_chunk) {
                 content += on_chunk(chunk);
             }
@@ -1371,7 +1381,7 @@ class ChatUserInput {
                     console.log(context);
                     console.log(prompt);
                     process_stream_response(response, self.on_chunk).then((content) => {
-                            console.log(content);
+                        console.log(content);
                     });
                 });
             }
@@ -1737,9 +1747,9 @@ class SettingsModal {
     create_max_output_tokens_widget() {
         this.max_output_tokens_widget = new RangeNumberWidget({
             id: this.max_output_tokens_id,
-            label_text: "Max Output Tokens <code>(-1: auto)</code>",
-            default_val: -1,
-            min_val: -1,
+            label_text: "Max Output Tokens",
+            default_val: 4096,
+            min_val: 1,
             max_val: 32768,
             step_val: 1,
         });
@@ -1756,7 +1766,7 @@ class SettingsModal {
                 if (!endpoint) {
                     this.show();
                 }
-                    $(`#${this.endpoint_id}`).val(endpoint);
+                $(`#${this.endpoint_id}`).val(endpoint);
             }),
             GM.getValue("airead_llm_api_key", "").then((api_key) => {
                 if (!api_key) {
@@ -1782,7 +1792,7 @@ class SettingsModal {
                         models_select.append(option);
                     }
                     GM.getValue("airead_llm_model", "").then((gm_model) => {
-                            self.set_model_select(gm_model);
+                        self.set_model_select(gm_model);
                         console.log(`init airead_llm_model: ${models_select.val()}`);
                     });
                 }
