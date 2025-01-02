@@ -385,8 +385,9 @@ class ElementContentConverter {
             latex_text = latex_text.replace("\\displaystyle", "");
 
             if (!keep_format) {
+                let re;
                 for (let regex in LATEX_FORMAT_MAP) {
-                    let re = new RegExp(regex, "gm");
+                    re = new RegExp(regex, "gm");
                     latex_text = latex_text.replace(re, LATEX_FORMAT_MAP[regex]);
                 }
             }
@@ -459,8 +460,9 @@ class ElementContentConverter {
         return element.outerHTML;
     }
     remove_whitespaces(text) {
+        let re;
         for (let regex in WHITESPACE_MAP) {
-            let re = new RegExp(regex, "gm");
+            re = new RegExp(regex, "gm");
             text = text.replace(re, WHITESPACE_MAP[regex]);
         }
         return text;
@@ -711,16 +713,17 @@ const AIREAD_CSS = `
 }
 .airead-chat-user-input-options {
 }
+.airead-chat-user-input-new-chat-btn,
 .airead-chat-user-input-option-select-para,
 .airead-chat-user-input-option-select-level {
-    padding: 0px 2px 0px 2px;
-    margin: 0;
+    padding: 0px 4px 0px 4px;
+    margin: 0px 8px 0px 0px;
     border-radius: 2px;
     box-shadow: 0px 0px 3px gray;
     font-size: small;
 }
 .airead-chat-user-input-option-select-para {
-    width: 100px;
+    width: 115px;
 }
 .airead-chat-user-input-option-select-level {
     width: auto;
@@ -1211,9 +1214,10 @@ class ChatUserInput {
             <div class="my-2 row no-gutters airead-chat-user-input-group">
                 <div class="airead-chat-user-input-options">
                     <div class="col px-0 pb-2 d-flex align-items-left">
+                        <button class="btn airead-chat-user-input-new-chat-btn">New Chat</button>
                         <select class="form-control airead-chat-user-input-option-select-para" title="Select more paragraphs as context">
                             <option value="only_this_para">only this para</option>
-                            <option value="more_paras_auto" selected="selected">(auto) more paras</option>
+                            <option value="more_paras_auto" selected="selected">more paras (auto)</option>
                         </select>
                     </div>
                 </div>
@@ -1241,13 +1245,30 @@ class ChatUserInput {
         }
         return last_assistant_chat_message_element;
     }
+    get_history_chat_messages() {
+        let chat_message_elements = this.user_input_group.parentNode.querySelectorAll(
+            ".airead-chat-message-user, .airead-chat-message-assistant"
+        );
+        let chat_messages = [];
+        for (let chat_message_element of chat_message_elements) {
+            let role = chat_message_element.classList.contains(
+                "airead-chat-message-user"
+            )
+                ? "user"
+                : "assistant";
+            let content = chat_message_element.dataset.content || "";
+            if (content) {
+                chat_messages.push({ role: role, content: content });
+            }
+        }
+        return chat_messages;
+    }
     update_last_assistant_chat_message_element(delta_content) {
         let element = this.last_assistant_chat_message_element;
         let last_content = element.dataset.content || "";
         element.dataset.content = last_content + delta_content;
         element.innerHTML = md2html(element.dataset.content);
     }
-
     on_chunk(chunk) {
         let delta = chunk.delta;
         if (delta.role) {
@@ -1279,6 +1300,21 @@ class ChatUserInput {
             context += element_text + "\n\n";
         }
         return context;
+    }
+    bind_new_chat() {
+        let self = this;
+        let new_chat_button = this.user_input_group.querySelector(
+            ".airead-chat-user-input-new-chat-btn"
+        );
+        new_chat_button.addEventListener("click", function () {
+            // remove all previous user and assistant chat messages
+            let chat_messages = self.user_input_group.parentNode.querySelectorAll(
+                ".airead-chat-message-user, .airead-chat-message-assistant"
+            );
+            for (let chat_message of chat_messages) {
+                chat_message.remove();
+            }
+        });
     }
     bind_options() {
         let self = this;
@@ -1352,7 +1388,7 @@ class ChatUserInput {
                     user_chat_message.spawn(parent_element);
 
                 user_input.style.height = "auto";
-                let prompt = user_input.value;
+                // let prompt = user_input.value;
                 user_input.value = "";
 
                 let assistant_chat_message = new AssistantChatMessageElement({
@@ -1361,25 +1397,23 @@ class ChatUserInput {
                 });
                 self.last_assistant_chat_message_element =
                     assistant_chat_message.spawn(parent_element);
-                console.log(self.last_assistant_chat_message_element);
                 let context = self.get_selected_elements_context();
-                chat_completions({
-                    messages: [
-                        {
-                            role: "user",
-                            content: `Please response according to following context:\n
+                let context_message = {
+                    role: "user",
+                    content: `请根据下面的文本，回答用户的问题或指令:\n
                             \`\`\`${context}\`\`\`\n`,
-                        },
-                        {
-                            role: "user",
-                            content: prompt,
-                        },
-                    ],
+                };
+                let messages = [
+                    context_message,
+                    ...self.get_history_chat_messages(),
+                ];
+                console.log(messages);
+                console.log(self.last_assistant_chat_message_element);
+                chat_completions({
+                    messages: messages,
                     model: get_llm_model(),
                     stream: true,
                 }).then((response) => {
-                    console.log(context);
-                    console.log(prompt);
                     process_stream_response(response, self.on_chunk).then((content) => {
                         console.log(content);
                     });
@@ -1393,6 +1427,7 @@ class ChatUserInput {
         this.user_input_group = this.user_input_group.firstChild;
         parent_element.parentNode.appendChild(this.user_input_group);
         this.bind_user_input(parent_element);
+        this.bind_new_chat();
         this.bind_options();
         return this.user_input_group;
     }
@@ -1418,6 +1453,7 @@ class UserChatMessageElement {
         );
         this.message_element.classList.add(`airead-chat-message-${this.role}`);
         this.message_element.textContent = this.content;
+        this.message_element.dataset.content = this.content;
         return this.message_element;
     }
 }
