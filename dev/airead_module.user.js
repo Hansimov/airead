@@ -719,7 +719,12 @@ const AIREAD_CSS = `
         padding: 4px;
     }
 }
+.btn:hover {
+    background-color: rgba(64, 128, 64, 0.5);
+    scale: 1.1;
+}
 .airead-chat-user-input-new-chat-btn,
+.airead-chat-user-input-hide-btn,
 .airead-chat-user-input-summarize-btn,
 .airead-chat-user-input-translate-btn,
 .airead-chat-user-input-keypoints-btn,
@@ -730,6 +735,18 @@ const AIREAD_CSS = `
     border-radius: 2px;
     box-shadow: 0px 0px 3px gray;
     font-size: small;
+}
+.airead-chat-user-input-new-chat-btn,
+.airead-chat-user-input-hide-btn {
+    border-color: FireBrick;
+}
+.airead-chat-user-input-option-select-para {
+    border-color: teal;
+}
+.airead-chat-user-input-summarize-btn,
+.airead-chat-user-input-translate-btn,
+.airead-chat-user-input-keypoints-btn {
+    border-color: DodgerBlue;
 }
 .airead-chat-user-input-option-select-para {
     width: 110px;
@@ -1219,6 +1236,23 @@ function de_highlight_all_siblings({ element } = {}) {
     remove_leader_lines();
 }
 
+function hide_chat_user_input_group({ element, chat_button = null } = {}) {
+    // hide chat_user_input_group
+    let chat_user_input_group = element.parentNode.querySelector(
+        ".airead-chat-user-input-group"
+    );
+    chat_user_input_group.style.display = "none";
+    // hide all elements with class starts with "airead-chat-message"
+    let chat_messages = element.parentNode.querySelectorAll(
+        "[class^='airead-chat-message']"
+    );
+    for (let chat_message of chat_messages) {
+        chat_message.style.display = "none";
+    }
+    chat_button.innerHTML = "Chat";
+    de_highlight_all_siblings({ element: element });
+}
+
 function md2html(text) {
     let converted_text;
     try {
@@ -1255,15 +1289,16 @@ class ChatUserInput {
             <div class="my-2 row no-gutters airead-chat-user-input-group">
                 <div class="airead-chat-user-input-options">
                     <div class="col px-0 pb-2 d-flex align-items-left">
-                        <button class="btn airead-chat-user-input-new-chat-btn">清空对话</button>
                         <button class="btn airead-chat-user-input-summarize-btn">总结</button>
                         <button class="btn airead-chat-user-input-translate-btn">翻译</button>
                         <button class="btn airead-chat-user-input-keypoints-btn">要点</button>
-                        <select class="form-control airead-chat-user-input-option-select-para" title="Select specific paragraphs as context">
-                        <option value="auto_more_paras" selected="selected">自动选取上下文</option>
-                        <option value="only_this_para">仅选取当前段落</option>
-                        <option value="all_paras">全选</option>
-                        </select>
+                        <span><select class="form-control airead-chat-user-input-option-select-para" title="Select specific paragraphs as context">
+                            <option value="auto_more_paras" selected="selected">自动选取上下文</option>
+                            <option value="only_this_para">仅选取当前段落</option>
+                            <option value="all_paras">全选</option>
+                        </select></span>
+                        <button class="btn airead-chat-user-input-new-chat-btn">清空对话</button>
+                        <button class="btn airead-chat-user-input-hide-btn">隐藏</button>
                     </div>
                 </div>
                 <div class="col-auto px-0">
@@ -1364,6 +1399,21 @@ class ChatUserInput {
             for (let chat_message of chat_messages) {
                 chat_message.remove();
             }
+        });
+    }
+    bind_hide_btn() {
+        let self = this;
+        let hide_button = this.user_input_group.querySelector(
+            ".airead-chat-user-input-hide-btn"
+        );
+        let chat_button = this.user_input_group.parentNode.querySelector(
+            ".airead-button"
+        );
+        hide_button.addEventListener("click", function () {
+            hide_chat_user_input_group({
+                element: self.get_current_pure_element(),
+                chat_button: chat_button
+            });
         });
     }
     bind_options() {
@@ -1530,6 +1580,7 @@ class ChatUserInput {
         this.user_input_group = this.user_input_group.firstChild;
         parent_element.parentNode.appendChild(this.user_input_group);
         this.bind_new_chat_btn();
+        this.bind_hide_btn();
         this.bind_user_input(parent_element);
         this.bind_preprompt_buttons(parent_element);
         this.bind_options();
@@ -1718,24 +1769,7 @@ class ToolButtonGroup {
                     });
                 }
             } else if (chat_button_text === "hide") {
-                // hide chat_user_input_group
-                let chat_user_input_group = element.parentNode.querySelector(
-                    ".airead-chat-user-input-group"
-                );
-                chat_user_input_group.style.display = "none";
-                // hide all elements with class starts with "airead-chat-message"
-                let chat_messages = element.parentNode.querySelectorAll(
-                    "[class^='airead-chat-message']"
-                );
-                for (let chat_message of chat_messages) {
-                    chat_message.style.display = "none";
-                }
-                this.chat_button.innerHTML = "Chat";
-                let siblings = get_more_siblings({
-                    element: element,
-                    para_options: "auto_more_paras",
-                });
-                de_highlight_all_siblings({ element: element });
+                hide_chat_user_input_group({ element: element, chat_button: this.chat_button });
             } else {
             }
         };
