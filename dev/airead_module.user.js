@@ -320,12 +320,13 @@ class PureElementsSelector {
         }
         return output_elements;
     }
-
     numbering_elements(elements) {
         console.log("Pure elements count:", elements.length);
         for (let i = 0; i < elements.length; i++) {
             elements[i].classList.add("pure-element");
             elements[i].classList.add(`pure-element-id-${i}`);
+            elements[i].dataset.idx = i;
+            elements[i].dataset.highlightByElementIdxs = JSON.stringify([]);
         }
         return elements;
     }
@@ -731,7 +732,7 @@ const AIREAD_CSS = `
     font-size: small;
 }
 .airead-chat-user-input-option-select-para {
-    width: 115px;
+    width: 110px;
 }
 .airead-chat-user-input-option-select-level {
     width: auto;
@@ -1086,6 +1087,11 @@ function get_children_by_depth({
     return children;
 }
 
+function get_all_airead_elements() {
+    let elements = document.querySelectorAll(".pure-element");
+    return elements;
+}
+
 function get_auto_more_siblings({
     element,
     depth = 1.5,
@@ -1133,10 +1139,10 @@ function get_auto_more_siblings({
 
 function get_more_siblings({
     element,
-    para_options = "more_paras_auto",
+    para_options = "auto_more_paras",
     return_parts = false,
 } = {}) {
-    if (para_options === "more_paras_auto") {
+    if (para_options === "auto_more_paras") {
         return get_auto_more_siblings({
             element: element,
             return_parts: return_parts,
@@ -1166,9 +1172,23 @@ function remove_leader_lines() {
         line.remove();
     }
 }
+function add_element_idx_to_sibling_highlight_idxs(element, sibling) {
+    let highlight_idxs = JSON.parse(sibling.dataset.highlightByElementIdxs);
+    highlight_idxs.push(element.dataset.idx);
+    sibling.dataset.highlightByElementIdxs = JSON.stringify(highlight_idxs);
+}
+function remove_element_idx_from_sibling_highlight_idxs(element, sibling) {
+    let highlight_idxs = JSON.parse(sibling.dataset.highlightByElementIdxs);
+    highlight_idxs = highlight_idxs.filter((idx) => idx !== element.dataset.idx);
+    sibling.dataset.highlightByElementIdxs = JSON.stringify(highlight_idxs);
+}
+function length_of_sibling_highlight_idxs(sibling) {
+    return JSON.parse(sibling.dataset.highlightByElementIdxs).length;
+}
 function highlight_siblings({ element, siblings = [] } = {}) {
     for (let sibling of siblings) {
         sibling.classList.add("airead-element-sibling-selected");
+        add_element_idx_to_sibling_highlight_idxs(element, sibling);
     }
     try {
         draw_leader_line(element, siblings[0]);
@@ -1180,9 +1200,22 @@ function highlight_siblings({ element, siblings = [] } = {}) {
 }
 function de_highlight_siblings({ element, siblings = [] } = {}) {
     for (let sibling of siblings) {
-        sibling.classList.remove("airead-element-sibling-selected");
+        remove_element_idx_from_sibling_highlight_idxs(element, sibling);
+        if (length_of_sibling_highlight_idxs(sibling) === 0) {
+            sibling.classList.remove("airead-element-sibling-selected");
+        }
     }
     element.classList.remove("airead-element-selected");
+    remove_leader_lines();
+}
+function de_highlight_all_siblings({ element } = {}) {
+    let highlighted_siblings = document.querySelectorAll(".airead-element-sibling-selected");
+    for (let sibling of highlighted_siblings) {
+        remove_element_idx_from_sibling_highlight_idxs(element, sibling);
+        if (length_of_sibling_highlight_idxs(sibling) === 0) {
+            sibling.classList.remove("airead-element-sibling-selected");
+        }
+    }
     remove_leader_lines();
 }
 
@@ -1226,9 +1259,10 @@ class ChatUserInput {
                         <button class="btn airead-chat-user-input-summarize-btn">总结</button>
                         <button class="btn airead-chat-user-input-translate-btn">翻译</button>
                         <button class="btn airead-chat-user-input-keypoints-btn">要点</button>
-                        <select class="form-control airead-chat-user-input-option-select-para" title="Select more paragraphs as context">
-                            <option value="only_this_para">only this para</option>
-                            <option value="more_paras_auto" selected="selected">more paras (auto)</option>
+                        <select class="form-control airead-chat-user-input-option-select-para" title="Select specific paragraphs as context">
+                        <option value="auto_more_paras" selected="selected">自动选取上下文</option>
+                        <option value="only_this_para">仅选取当前段落</option>
+                        <option value="all_paras">全选</option>
                         </select>
                     </div>
                 </div>
@@ -1297,15 +1331,20 @@ class ChatUserInput {
     get_selected_elements_context() {
         let element = this.get_current_pure_element();
         let para_options_select = this.user_input_group.querySelector("select");
-        let parents_and_children_siblings = get_more_siblings({
-            element: this.get_current_pure_element(),
-            para_options: para_options_select.value,
-            return_parts: true,
-        });
-        let parent_siblings = parents_and_children_siblings[0];
-        let children_siblings = parents_and_children_siblings[1];
+        let selected_elements;
+        if (para_options_select.value === "all_paras") {
+            selected_elements = get_all_airead_elements();
+        } else {
+            let parents_and_children_siblings = get_more_siblings({
+                element: this.get_current_pure_element(),
+                para_options: para_options_select.value,
+                return_parts: true,
+            });
+            let parent_siblings = parents_and_children_siblings[0];
+            let children_siblings = parents_and_children_siblings[1];
+            selected_elements = [...parent_siblings, element, ...children_siblings];
+        }
         let context = "";
-        let selected_elements = [...parent_siblings, element, ...children_siblings];
         for (let selected_element of selected_elements) {
             let element_text = get_element_text(selected_element);
             context += element_text + "\n\n";
@@ -1331,7 +1370,7 @@ class ChatUserInput {
         let self = this;
         let element = self.get_current_pure_element();
         function add_option_html(para_options_select) {
-            if (para_options_select.value === "more_paras_manual") {
+            if (para_options_select.value === "manual_paras") {
                 let more_para_select_option_html = `&nbsp;:&nbsp;
                 <select class="form-control airead-chat-user-input-option-select-level" title="Select paragraphs by previous count or parent level">
                     <option value="parent_level">parent level</option>
@@ -1347,11 +1386,22 @@ class ChatUserInput {
                     "afterend",
                     more_para_select_option_html
                 );
-            } else if (para_options_select.value === "more_paras_auto") {
+            } else if (para_options_select.value === "all_paras") {
                 remove_siblings(para_options_select);
+                remove_leader_lines();
+                let siblings = get_all_airead_elements();
+                highlight_siblings({
+                    element: element,
+                    siblings: siblings,
+                });
+            } else if (para_options_select.value === "auto_more_paras") {
+                remove_siblings(para_options_select);
+                de_highlight_all_siblings({
+                    element: element
+                });
                 let siblings = get_more_siblings({
                     element: element,
-                    para_options: "more_paras_auto",
+                    para_options: "auto_more_paras",
                 });
                 highlight_siblings({
                     element: element,
@@ -1359,13 +1409,8 @@ class ChatUserInput {
                 });
             } else if (para_options_select.value === "only_this_para") {
                 remove_siblings(para_options_select);
-                let siblings = get_more_siblings({
-                    element: element,
-                    para_options: "more_paras_auto",
-                });
-                de_highlight_siblings({
-                    element: element,
-                    siblings: siblings,
+                de_highlight_all_siblings({
+                    element: element
                 });
             } else {
                 remove_siblings(para_options_select);
@@ -1665,7 +1710,7 @@ class ToolButtonGroup {
                 if (para_options_select) {
                     let siblings = get_more_siblings({
                         element: element,
-                        para_options: "more_paras_auto",
+                        para_options: "auto_more_paras",
                     });
                     highlight_siblings({
                         element: element,
@@ -1688,12 +1733,9 @@ class ToolButtonGroup {
                 this.chat_button.innerHTML = "Chat";
                 let siblings = get_more_siblings({
                     element: element,
-                    para_options: "more_paras_auto",
+                    para_options: "auto_more_paras",
                 });
-                de_highlight_siblings({
-                    element: element,
-                    siblings: siblings,
-                });
+                de_highlight_all_siblings({ element: element });
             } else {
             }
         };
