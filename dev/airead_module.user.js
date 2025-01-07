@@ -167,6 +167,14 @@ const WIKIPEDIA_EXCLUDED_CLASSES = [
     "contentSub",
     "siteNotice",
 ];
+const STACKOVERFLOW_EXCLUDED_CLASSES = [
+    "bottom-notice",
+    "form-submit",
+    "(comments?-)((form)|(flagging)|(link.*)|(score)|(voting))",
+    "s-popover",
+    "(js-)((suggest-edit-post)|(flag-post-link))",
+    "your-answer-header",
+];
 const ARXIV_EXCLUDED_CLASSES = [
     "(ltx_)((flex_break)|(pagination))",
     "extra-services",
@@ -179,6 +187,7 @@ const EXCLUDED_CLASSES = [].concat(
     REMOVED_CLASSES,
     COMMON_EXCLUDED_CLASSES,
     WIKIPEDIA_EXCLUDED_CLASSES,
+    STACKOVERFLOW_EXCLUDED_CLASSES,
     ARXIV_EXCLUDED_CLASSES,
     DOCS_PYTHON_EXCLUDED_CLASSES,
     AMINER_EXCLUDED_CLASSES,
