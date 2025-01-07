@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AIRead Module
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.0
 // @description  Module script for AIRead
 // @author       Hansimov
 // @connect      *
@@ -79,6 +79,7 @@ const BLOCKQUOTE_TAGS = ["blockquote"];
 const IMG_TAGS = ["img"];
 const CAPTION_TAGS = ["figcaption"];
 
+const BODY_TAGS = ["body"];
 const GROUP_TAGS = ["div", "section"];
 const LIST_TAGS = ["ul", "ol"];
 const DEF_TAGS = ["dl"];
@@ -100,11 +101,14 @@ const ATOM_TAGS = [].concat(
     HEADER_TAGS,
     TABLE_TAGS,
     PRE_TAGS,
+    // CODE_TAGS,
     BLOCKQUOTE_TAGS,
-    IMG_TAGS,
+    // IMG_TAGS,
+    // LINK_TAGS,
     CAPTION_TAGS
 );
 const PARA_TAGS = [].concat(
+    BODY_TAGS,
     GROUP_TAGS,
     // SPAN_TAGS,
     LIST_TAGS,
@@ -167,6 +171,14 @@ const WIKIPEDIA_EXCLUDED_CLASSES = [
     "contentSub",
     "siteNotice",
 ];
+const STACKOVERFLOW_EXCLUDED_CLASSES = [
+    "bottom-notice",
+    "form-submit",
+    "(comments?-)((form)|(flagging)|(link.*)|(score)|(voting))",
+    "s-popover",
+    "(js-)((suggest-edit-post)|(flag-post-link))",
+    "your-answer-header",
+];
 const ARXIV_EXCLUDED_CLASSES = [
     "(ltx_)((flex_break)|(pagination))",
     "extra-services",
@@ -179,6 +191,7 @@ const EXCLUDED_CLASSES = [].concat(
     REMOVED_CLASSES,
     COMMON_EXCLUDED_CLASSES,
     WIKIPEDIA_EXCLUDED_CLASSES,
+    STACKOVERFLOW_EXCLUDED_CLASSES,
     ARXIV_EXCLUDED_CLASSES,
     DOCS_PYTHON_EXCLUDED_CLASSES,
     AMINER_EXCLUDED_CLASSES,
@@ -188,13 +201,46 @@ const EXCLUDED_CLASSES = [].concat(
 // Helper Functions
 
 function get_tag(element) {
-    return element.tagName.toLowerCase();
+    if (element.nodeType === Node.TEXT_NODE) {
+        return "text_node";
+    } else if (element.nodeType === Node.COMMENT_NODE) {
+        return "comment_node";
+    } else {
+        try {
+            return element.tagName.toLowerCase();
+        } catch (error) {
+            return "unknown";
+        }
+    }
 }
-
+function is_text_node(element) {
+    return get_tag(element) === "text_node";
+}
+function is_element_node(element) {
+    return get_tag(element) !== "text_node";
+}
+function is_element_only_consist_of_text_and_code_nodes(element) {
+    return Array.from(element.childNodes).every((node) => {
+        return is_text_node(node) || get_tag(node) === "code";
+    });
+}
+function is_text_element(element) {
+    return is_element_node(element) && is_element_in_tags(element, ["span", "code", "a"]) && is_element_only_consist_of_text_and_code_nodes(element);
+}
+function get_all_text_nodes(element) {
+    let text_nodes = [];
+    for (let node of element.childNodes) {
+        if (is_text_node(node)) {
+            text_nodes.push(node);
+        } else {
+            text_nodes = text_nodes.concat(get_all_text_nodes(node));
+        }
+    }
+    return text_nodes;
+}
 function get_descendants(element) {
     return Array.from(element.querySelectorAll("*"));
 }
-
 function get_parents(element) {
     var parents = [];
     var parent = element.parentElement;
@@ -208,6 +254,35 @@ function get_parents(element) {
 function is_elements_has_tags(elements, tags) {
     return elements.some((element) => tags.includes(get_tag(element)));
 }
+function is_element_in_tags(element, tags) {
+    return tags.includes(get_tag(element));
+}
+function is_all_elements_in_tags(elements, tags) {
+    return elements.every((element) => tags.includes(get_tag(element)));
+}
+function is_siblings_has_tags(element, tags) {
+    let siblings = Array.from(element.parentElement.childNodes);
+    // exclude element itself
+    siblings = siblings.filter((sibling) => sibling !== element);
+    return siblings.some((sibling) => tags.includes(get_tag(sibling)));
+}
+function unwrap_para_of_element(element) {
+    let nodes = [];
+    for (let node of element.childNodes) {
+        if (is_element_only_consist_of_text_and_code_nodes(node)
+            || is_element_in_tags(node, ATOM_TAGS)
+        ) {
+            nodes.push(node);
+        } else {
+            if (is_element_in_tags(node, [...PARA_TAGS, ...SPAN_TAGS])) {
+                nodes = nodes.concat(unwrap_para_of_element(node));
+            } else {
+                nodes.push(node);
+            }
+        }
+    }
+    return nodes;
+}
 
 function is_class_id_match_pattern(element, pattern_str) {
     let pattern = new RegExp(pattern_str, "i");
@@ -220,17 +295,30 @@ function is_class_id_match_pattern(element, pattern_str) {
     return is_match;
 }
 
-function calc_width_of_descendants(element) {
-    // width of descendants means: max count of child elements per level
-    let max_count = element.childElementCount;
+function get_width_of_child_nodes(element) {
+    // width of first level child nodes, including text nodes
+    return element.childNodes.length;
+}
+function get_max_width_of_descendants(element) {
+    // max width of descendants means: max count of child elements per level
+    let max_width = get_width_of_child_nodes(element);
     let descendants = get_descendants(element);
     for (let i = 0; i < descendants.length; i++) {
-        let count = descendants[i].childElementCount;
-        if (count > max_count) {
-            max_count = count;
+        let width = get_width_of_child_nodes(descendants[i]);
+        if (width > max_width) {
+            max_width = width;
         }
     }
-    return max_count;
+    return max_width;
+}
+function get_deepest_single_child_node(element) {
+    // dive deeper until width of child nodes is not 1,
+    // then return the last child which has width of 1
+    let child = element;
+    while (get_width_of_child_nodes(child) === 1) {
+        child = child.childNodes[0];
+    }
+    return child;
 }
 
 // Main Classes
@@ -238,26 +326,38 @@ function calc_width_of_descendants(element) {
 class PureElementsSelector {
     constructor() { }
     is_atomized(element) {
+        // this is meant to find the min-max unit of element
         const tag = get_tag(element);
         const descendants = get_descendants(element);
         const parents = get_parents(element);
 
+        // if any ancient is atomized, then this element is not atomized,
+        // as atom should be maximized
+        const is_any_ancient_atomized = is_elements_has_tags(parents, ATOM_TAGS);
         if (ATOM_TAGS.includes(tag)) {
-            return !is_elements_has_tags(parents, ATOM_TAGS);
+            return !is_any_ancient_atomized;
         }
-        if (PARA_TAGS.includes(tag)) {
-            const is_parent_has_atom = is_elements_has_tags(parents, ATOM_TAGS);
+
+        if ([...PARA_TAGS, ...SPAN_TAGS].includes(tag)) {
+            // if all unwrapped nodes are text nodes or elements, then this element is atomized
+            let unwrapped_nodes = unwrap_para_of_element(element);
+            const is_unwrapped_nodes_all_text = unwrapped_nodes.every((node) => is_element_only_consist_of_text_and_code_nodes(node));
+            if (is_unwrapped_nodes_all_text) {
+                return true;
+            }
+
+            // if any descendant is para-type (except consist only text and codes), then this element is not atomized
             const is_descendant_has_para = is_elements_has_tags(
-                descendants,
-                PARA_TAGS
+                descendants, PARA_TAGS
             );
-            // if descendant has atom, and descendant width is 1, then it is not atomized
+
+            // if descendant has atom, and descendant width is 1, then this element is not atomized
+            // as atom should be minimized
             const is_descendant_has_only_atom =
-                calc_width_of_descendants(element) == 1 &&
+                get_max_width_of_descendants(element) == 1 &&
                 is_elements_has_tags(descendants, ATOM_TAGS);
 
             return !(
-                is_parent_has_atom ||
                 is_descendant_has_para ||
                 is_descendant_has_only_atom
             );
@@ -311,12 +411,17 @@ class PureElementsSelector {
         return output_elements;
     }
     filter_overlapped_elements(elements) {
+        // remove elements which are children of other elements in elements
         let output_elements = [...elements];
         for (let element of elements) {
             let parents = get_parents(element);
-            output_elements = output_elements.filter(
-                (element) => !parents.includes(element)
-            );
+            for (let parent of parents) {
+                if (output_elements.includes(parent)) {
+                    output_elements = output_elements.filter(
+                        (item) => item !== element
+                    );
+                }
+            }
         }
         return output_elements;
     }
@@ -654,6 +759,10 @@ function chat_completions({
 // ===================== AIRead Start ===================== //
 
 const AIREAD_CSS = `
+.pure-element img {
+    all: initial;
+}
+
 .airead-tool-button-group {
     display: block;
     position: absolute;
