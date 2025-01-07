@@ -326,26 +326,38 @@ function get_deepest_single_child_node(element) {
 class PureElementsSelector {
     constructor() { }
     is_atomized(element) {
+        // this is meant to find the min-max unit of element
         const tag = get_tag(element);
         const descendants = get_descendants(element);
         const parents = get_parents(element);
 
+        // if any ancient is atomized, then this element is not atomized,
+        // as atom should be maximized
+        const is_any_ancient_atomized = is_elements_has_tags(parents, ATOM_TAGS);
         if (ATOM_TAGS.includes(tag)) {
-            return !is_elements_has_tags(parents, ATOM_TAGS);
+            return !is_any_ancient_atomized;
         }
-        if (PARA_TAGS.includes(tag)) {
-            const is_parent_has_atom = is_elements_has_tags(parents, ATOM_TAGS);
+
+        if ([...PARA_TAGS, ...SPAN_TAGS].includes(tag)) {
+            // if all unwrapped nodes are text nodes or elements, then this element is atomized
+            let unwrapped_nodes = unwrap_para_of_element(element);
+            const is_unwrapped_nodes_all_text = unwrapped_nodes.every((node) => is_element_only_consist_of_text_and_code_nodes(node));
+            if (is_unwrapped_nodes_all_text) {
+                return true;
+            }
+
+            // if any descendant is para-type (except consist only text and codes), then this element is not atomized
             const is_descendant_has_para = is_elements_has_tags(
-                descendants,
-                PARA_TAGS
+                descendants, PARA_TAGS
             );
-            // if descendant has atom, and descendant width is 1, then it is not atomized
+
+            // if descendant has atom, and descendant width is 1, then this element is not atomized
+            // as atom should be minimized
             const is_descendant_has_only_atom =
-                calc_width_of_descendants(element) == 1 &&
+                get_max_width_of_descendants(element) == 1 &&
                 is_elements_has_tags(descendants, ATOM_TAGS);
 
             return !(
-                is_parent_has_atom ||
                 is_descendant_has_para ||
                 is_descendant_has_only_atom
             );
@@ -399,12 +411,17 @@ class PureElementsSelector {
         return output_elements;
     }
     filter_overlapped_elements(elements) {
+        // remove elements which are children of other elements in elements
         let output_elements = [...elements];
         for (let element of elements) {
             let parents = get_parents(element);
-            output_elements = output_elements.filter(
-                (element) => !parents.includes(element)
-            );
+            for (let parent of parents) {
+                if (output_elements.includes(parent)) {
+                    output_elements = output_elements.filter(
+                        (item) => item !== element
+                    );
+                }
+            }
         }
         return output_elements;
     }
@@ -742,6 +759,10 @@ function chat_completions({
 // ===================== AIRead Start ===================== //
 
 const AIREAD_CSS = `
+.pure-element img {
+    all: initial;
+}
+
 .airead-tool-button-group {
     display: block;
     position: absolute;
