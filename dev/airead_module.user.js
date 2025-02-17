@@ -10,6 +10,8 @@
 // @grant        GM.setValue
 // ==/UserScript==
 
+/* globals jQuery, $, waitForKeyElements */
+
 // ===================== RequireModules Start ===================== //
 
 function require_module(url, cache = true) {
@@ -681,8 +683,11 @@ function get_llm_api_key() {
     return api_key_widget.value;
 }
 function get_llm_model() {
+    let custom_model_widget = document.getElementById("settings-modal-custom-model");
+    let custom_model_value = custom_model_widget.value;
     let model_widget = document.getElementById("settings-modal-models");
-    return model_widget.value;
+    let model_value = model_widget.value;
+    return custom_model_value || model_value;
 }
 
 function get_llm_models({ endpoint, api_key } = {}) {
@@ -759,8 +764,10 @@ function chat_completions({
 // ===================== AIRead Start ===================== //
 
 const AIREAD_CSS = `
-.pure-element img {
-    all: initial;
+.pure-element,  {
+    img, button, dd, dt {
+        all: initial;
+    }
 }
 
 .airead-tool-button-group {
@@ -1981,6 +1988,7 @@ class SettingsModal {
         this.id = id;
         this.endpoint_id = `${this.id}-endpoint`;
         this.api_key_id = `${this.id}-api-key`;
+        this.custom_model_id = `${this.id}-custom-model`;
         this.models_id = `${this.id}-models`;
         this.temperature_id = `${this.id}-temperature`;
         this.top_p_id = `${this.id}-top-p`;
@@ -2054,8 +2062,16 @@ class SettingsModal {
                 }
                 $(`#${this.api_key_id}`).val(api_key);
             }),
+            GM.getValue("airead_llm_custom_model", "").then((custom_model) => {
+                $(`#${this.custom_model_id}`).val(custom_model);
+            }),
         ]).then(() => {
-            this.init_models_select();
+            let custom_model = $(`#${this.custom_model_id}`).val();
+            if (custom_model) {
+                console.log(`airead_llm_custom_model: ${custom_model}`);
+            } else {
+                this.init_models_select();
+            }
         });
     }
     init_models_select() {
@@ -2094,17 +2110,17 @@ class SettingsModal {
     reset_endpoint_and_api_key() {
         GM.setValue("airead_llm_endpoint", "").then(() => {
             $(`#${this.endpoint_id}`).val("");
-            console.log(`reset airead_llm_endpoint :${""}`);
+            console.log(`reset airead_llm_endpoint: ${""}`);
         });
         GM.setValue("airead_llm_api_key", "").then(() => {
             $(`#${this.api_key_id}`).val("");
-            console.log(`reset airead_llm_api_key :${""}`);
+            console.log(`reset airead_llm_api_key: ${""}`);
         });
     }
     reset_model_select() {
         GM.setValue("airead_llm_model", "").then(() => {
             this.set_model_select("");
-            console.log(`reset airead_llm_model :${""}`);
+            console.log(`reset airead_llm_model: ${""}`);
         });
     }
     save_endpoint_and_api_key() {
@@ -2112,14 +2128,22 @@ class SettingsModal {
         let api_key = $(`#${this.api_key_id}`).val();
         Promise.all([
             GM.setValue("airead_llm_endpoint", endpoint),
-            console.log(`save airead_llm_endpoint :${endpoint}`),
+            console.log(`save airead_llm_endpoint: ${endpoint}`),
             GM.setValue("airead_llm_api_key", api_key),
-            console.log(`save airead_llm_api_key :${api_key}`),
+            console.log(`save airead_llm_api_key: ${api_key}`),
         ]).then(() => { });
     }
     save_model() {
         let model = $(`#${this.models_id}`).val();
-        if (!model) {
+        let custom_model = $(`#${this.custom_model_id}`).val();
+        if (custom_model) {
+            GM.setValue("airead_llm_custom_model", custom_model).then(() => {
+                console.log(`save airead_llm_custom_model: ${custom_model}`);
+            });
+            GM.setValue("airead_llm_model", custom_model).then(() => {
+                console.log(`save airead_llm_model: ${custom_model}`);
+            });
+        } else if (!model) {
             get_llm_models(
                 {
                     endpoint: $(`#${this.endpoint_id}`).val(),
@@ -2128,14 +2152,15 @@ class SettingsModal {
             ).then((models) => {
                 model = models[0];
                 GM.setValue("airead_llm_model", model).then(() => {
-                    console.log(`save airead_llm_model :${model}`);
+                    console.log(`save airead_llm_model: ${model}`);
                 });
                 this.init_models_select();
             });
+        } else {
+            GM.setValue("airead_llm_model", model).then(() => {
+                console.log(`save airead_llm_model: ${model}`);
+            });
         }
-        GM.setValue("airead_llm_model", model).then(() => {
-            console.log(`save airead_llm_model :${model}`);
-        });
     }
     bind_buttons() {
         let self = this;
@@ -2169,6 +2194,11 @@ class SettingsModal {
                         <div class="form-floating mb-2">
                             <input id="${this.api_key_id}" class="form-control" type="text"/>
                             <label class="form-label">API Key</label>
+                        </div>
+                        <!-- Custom Model -->
+                        <div class="form-floating mb-2">
+                            <input id="${this.custom_model_id}" class="form-control" type="text"/>
+                            <label class="form-label">Custom Model</label>
                         </div>
                         <!-- Models -->
                         <div class="form-floating mb-2">
