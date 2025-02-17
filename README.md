@@ -32,6 +32,8 @@ Latest updates and demos would be posted on Bilibili:
   - New select all_paras option, new hide button in user_input_group, and prettify button styles
 - v1.0 (2025-01-07)
   - Enhance pure elements selection
+- v1.0.1 (2025-02-17)
+  - Support custom model, which is used by Volcengine of ByteDance
 
 ## For Users
 
