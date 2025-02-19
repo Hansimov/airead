@@ -690,11 +690,24 @@ function get_llm_model() {
     return custom_model_value || model_value;
 }
 
+
+function remove_tail_slash(url) {
+    return url.replace(/\/$/, "");
+}
+
+function get_model_url(endpoint) {
+    return remove_tail_slash(endpoint) + "/models";
+}
+
+function get_chat_completions_url(endpoint) {
+    return remove_tail_slash(endpoint) + "/chat/completions";
+}
+
 function get_llm_models({ endpoint, api_key } = {}) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "GET",
-            url: endpoint + "/models",
+            url: get_model_url(endpoint),
             headers: {
                 "Content-Type": "application/json",
                 Accept: "application/json",
@@ -725,7 +738,7 @@ function chat_completions({
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "POST",
-            url: endpoint + "/chat/completions",
+            url: get_chat_completions_url(endpoint),
             headers: {
                 "Content-Type": "application/json",
                 Accept: "application/json",
