@@ -690,7 +690,6 @@ function get_llm_model() {
     return custom_model_value || model_value;
 }
 
-
 function remove_tail_slash(url) {
     return url.replace(/\/$/, "");
 }
@@ -2153,10 +2152,16 @@ class SettingsModal {
             GM.setValue("airead_llm_custom_model", custom_model).then(() => {
                 console.log(`save airead_llm_custom_model: ${custom_model}`);
             });
-            GM.setValue("airead_llm_model", custom_model).then(() => {
-                console.log(`save airead_llm_model: ${custom_model}`);
+        } else {
+            GM.setValue("airead_llm_custom_model", "").then(() => {
+                console.log(`clear airead_llm_custom_model`);
             });
-        } else if (!model) {
+        }
+        if (model) {
+            GM.setValue("airead_llm_model", model).then(() => {
+                console.log(`save airead_llm_model: ${model}`);
+            });
+        } else {
             get_llm_models(
                 {
                     endpoint: $(`#${this.endpoint_id}`).val(),
@@ -2168,10 +2173,6 @@ class SettingsModal {
                     console.log(`save airead_llm_model: ${model}`);
                 });
                 this.init_models_select();
-            });
-        } else {
-            GM.setValue("airead_llm_model", model).then(() => {
-                console.log(`save airead_llm_model: ${model}`);
             });
         }
     }
