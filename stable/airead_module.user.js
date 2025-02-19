@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AIRead Module
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.0.2
 // @description  Module script for AIRead
 // @author       Hansimov
 // @connect      *
@@ -690,11 +690,23 @@ function get_llm_model() {
     return custom_model_value || model_value;
 }
 
+function remove_tail_slash(url) {
+    return url.replace(/\/$/, "");
+}
+
+function get_model_url(endpoint) {
+    return remove_tail_slash(endpoint) + "/models";
+}
+
+function get_chat_completions_url(endpoint) {
+    return remove_tail_slash(endpoint) + "/chat/completions";
+}
+
 function get_llm_models({ endpoint, api_key } = {}) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "GET",
-            url: endpoint + "/models",
+            url: get_model_url(endpoint),
             headers: {
                 "Content-Type": "application/json",
                 Accept: "application/json",
@@ -725,7 +737,7 @@ function chat_completions({
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "POST",
-            url: endpoint + "/chat/completions",
+            url: get_chat_completions_url(endpoint),
             headers: {
                 "Content-Type": "application/json",
                 Accept: "application/json",
@@ -2140,10 +2152,16 @@ class SettingsModal {
             GM.setValue("airead_llm_custom_model", custom_model).then(() => {
                 console.log(`save airead_llm_custom_model: ${custom_model}`);
             });
-            GM.setValue("airead_llm_model", custom_model).then(() => {
-                console.log(`save airead_llm_model: ${custom_model}`);
+        } else {
+            GM.setValue("airead_llm_custom_model", "").then(() => {
+                console.log(`clear airead_llm_custom_model`);
             });
-        } else if (!model) {
+        }
+        if (model) {
+            GM.setValue("airead_llm_model", model).then(() => {
+                console.log(`save airead_llm_model: ${model}`);
+            });
+        } else {
             get_llm_models(
                 {
                     endpoint: $(`#${this.endpoint_id}`).val(),
@@ -2155,10 +2173,6 @@ class SettingsModal {
                     console.log(`save airead_llm_model: ${model}`);
                 });
                 this.init_models_select();
-            });
-        } else {
-            GM.setValue("airead_llm_model", model).then(() => {
-                console.log(`save airead_llm_model: ${model}`);
             });
         }
     }
